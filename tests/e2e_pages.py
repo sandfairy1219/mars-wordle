@@ -40,9 +40,9 @@ def run(pw, width, height, shot=None):
     pg.on("console", lambda m: cons.append(f"{m.type}: {m.text}"))
     # --- 디스코드 연동 경로 검증: players.json/웹훅을 가로채 실제 채널에 안 쏘게 ---
     posted = {}
-    pg.route("**/players.json*", lambda route: route.fulfill(
-        status=200, content_type="application/json",
-        body=json.dumps([{"id": "999000000000000001", "name": "연동테스트"}], ensure_ascii=False)))
+    pg.route("**/api/webhooks/**", lambda route: (
+        posted.update(json.loads(route.request.post_data or "{}")),
+        route.fulfill(status=204, body="")))
     FR_DAYS = {"days": [
         {"n": 1944, "date": "2026-10-14", "players": [
             {"name": "친구A", "score": "3", "grid": "🟩🟨⬛⬛🟩\n🟩🟩🟨⬛⬛\n🟩🟩🟩🟩🟩"},
@@ -70,14 +70,10 @@ def run(pw, width, height, shot=None):
     assert state["words"] > 10000, "단어사전 로드 실패: %s" % state["words"]
     today_word = state["answer"]
 
-    # 0) 디스코드 연동: 드롭다운이 players.json으로 채워지고 선택이 저장돼야 함
-    opts = pg.evaluate("Array.from(document.getElementById('who').options).map(o=>o.value)")
-    assert "999000000000000001" in opts, "players.json 드롭다운 미반영: %s" % opts
-    pg.select_option("#who", "999000000000000001")
-    pg.wait_for_timeout(500)
-    assert "연동테스트" in pg.evaluate("document.getElementById('me-state').textContent"), "연동 상태 표시 실패"
-    assert pg.evaluate("JSON.parse(localStorage.getItem('mw-me')).id") == "999000000000000001", "연동 정보 미저장"
-    print("OK 디스코드 연동(players.json → 드롭다운 → 저장)")
+    # 0) 위조 가능한 '이름 선택' 드롭다운은 제거됐어야 함 (연동은 Discord 로그인 전용)
+    assert pg.evaluate("!document.getElementById('who')"), "이름 선택 드롭다운이 아직 남아있음(위조 가능)"
+    assert "Discord 로그인" in pg.evaluate("document.getElementById('login-btn').textContent"), "로그인 버튼 없음"
+    print("OK 이름선택 드롭다운 제거 확인(연동=Discord 로그인 전용)")
 
     # 1) 사전에 없는 단어는 거부돼야 함
     pg.keyboard.type("ZZZZZ")
@@ -114,15 +110,11 @@ def run(pw, width, height, shot=None):
     assert end["cd"].startswith("다음 문제까지"), "카운트다운 없음"
     print("OK 승리·모달·공유·카운트다운")
 
-    # 3-1) 게임 종료 시 결과가 웹훅으로 자동 전송돼야 함
+    # 3-1) 미연동 상태에서는 자동 전송이 일어나면 안 됨(위조/오귀속 방지)
     pg.wait_for_timeout(1500)
-    print("posted:", json.dumps(posted, ensure_ascii=False)[:220])
-    assert posted, "결과 자동 전송(POST) 안 됨"
-    body = posted.get("content", "")
-    assert "👤 999000000000000001 (연동테스트)" in body, "귀속 라인 누락: %s" % body
-    assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
-    assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단 누락"
-    print("OK 결과 자동 전송(웹훅·귀속·멘션차단)")
+    print("unlinked posted:", json.dumps(posted, ensure_ascii=False)[:150])
+    assert not posted, "미연동인데 결과가 전송됨: %s" % posted
+    print("OK 미연동 시 자동 전송 없음")
 
     # 3-2) 친구들 결과 패널 (공식 앱 결과화면 대체) — 모달 안 버튼으로 진입
     pg.click("#friends-btn")
@@ -153,13 +145,19 @@ def run(pw, width, height, shot=None):
     assert '"via":"oauth"' in (oauth["me"] or ""), "OAuth 신원 저장 실패: %s" % oauth["me"]
     assert "테스터" in oauth["state"], "연동 표시 실패: %s" % oauth["state"]
     assert oauth["hash"] == "", "토큰 해시가 남음"
-    posted.clear()
-    pg.evaluate("submittedDay = null")            # 자동 전송 가드 해제 후 수동 전송
-    pg.click("#send-btn"); pg.wait_for_timeout(1500)
+    # 로그인 직후: 이미 끝난 오늘 게임이 자동 전송돼야 함(귀속 = 로그인 신원)
+    pg.wait_for_timeout(1200)
     body = posted.get("content", "")
-    print("oauth submit:", body[:120].replace("\n", "|"))
-    assert "👤 777000000000000042 (테스터)" in body, "로그인 신원으로 전송 안 됨: %s" % body
-    print("OK Discord 로그인 연동(콜백·신원·자동전송)")
+    print("oauth auto submit:", body[:130].replace("\n", "|"))
+    assert "<@777000000000000042>" in body, "멘션 형식으로 자동 전송 안 됨: %s" % body
+    assert "👤" not in body and "777000000000000042 (" not in body, "id/이름 노출됨: %s" % body
+    assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
+    assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단(핑 방지) 누락"
+    posted.clear()
+    pg.evaluate("submittedDay = null")            # 수동 재전송 경로도 확인
+    pg.click("#send-btn"); pg.wait_for_timeout(1500)
+    assert "<@777000000000000042>" in posted.get("content", ""), "수동 전송 실패"
+    print("OK Discord 로그인 연동(콜백·신원·멘션 전송·자동/수동)")
 
     # 4) 레이아웃: 가로 스크롤 없음 + 타일 5개 한 줄
     lay = pg.evaluate("({iw: window.innerWidth, sw: document.documentElement.scrollWidth, tiles: document.querySelector('.row').childElementCount, tileW: Math.round(document.querySelector('.tile').getBoundingClientRect().width)})")

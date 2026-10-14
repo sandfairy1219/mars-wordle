@@ -99,8 +99,7 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
 </header>
 <div id="me-bar">
   <button id="login-btn" title="Discord 계정으로 연동">🔗 Discord 로그인</button>
-  <select id="who"><option value="">또는 이름 선택</option></select>
-  <span id="me-state">미연동</span>
+  <span id="me-state">미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼</span>
   <button id="fr-btn" title="친구들 결과 보기">👥 친구들</button>
 </div>
 <div id="board"></div>
@@ -132,8 +131,8 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="fr-close">닫기</button>
 </div></div>
 <footer>매일 자정(한국시간) 새 문제 · 정답은 NYT Wordle API 기준이라 <b>디스코드 공식 Wordle과 같은 날 같은 단어</b>야.<br>
-위에서 <b>내 디스코드</b>를 고르면 결과가 자동으로 <b>#워들</b>에 올라가고, 매일 0시에 그룹 연속·순위 요약이 뜬다.
-(미연동이면 <b>결과 복사</b> → #워들에 붙여넣기 — 그것도 자동 등록·집계됨)</footer>
+<b>🔗 Discord 로그인</b>하면 결과가 자동으로 <b>#워들</b>에 올라가고, 매일 0시에 그룹 연속·순위 요약이 뜬다.<br>
+로그인 없이 하려면 <b>결과 복사</b> → #워들에 붙여넣기 (내 계정으로 올라가서 자동 집계됨)</footer>
 
 <script>
 'use strict';
@@ -345,7 +344,7 @@ async function startDaily() {
   day = dstr();
   resetGame('.....', 'daily'); setMeta();
   toast('오늘 단어 불러오는 중…');
-  await loadWords(); await loadPlayers();
+  await loadWords();
   const w = await resolveWord(day);
   answer = w.solution; num = w.number; setMeta();
   if (source.startsWith('오프라인')) toast('인터넷 없음 — 대체 단어로 진행');
@@ -364,7 +363,10 @@ async function startDaily() {
 const WEBHOOK = "https://discord.com/api/webhooks/REDACTED";
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
 let ME = null, submittedDay = null;
-try { ME = JSON.parse(localStorage.getItem('mw-me') || 'null'); } catch (e) { ME = null; }
+try {
+  ME = JSON.parse(localStorage.getItem('mw-me') || 'null');
+  if (ME && ME.via !== 'oauth') { ME = null; localStorage.removeItem('mw-me'); }   // 옛 '이름 선택' 연동은 폐기(위조 가능했음)
+} catch (e) { ME = null; }
 /* Discord OAuth2 (implicit, identify) — redirect_uri는 포털에 등록된 정확한 값이어야 함 */
 const OAUTH_REDIRECT = "https://sandfairy1219.github.io/mars-wordle/";
 const AUTH_URL = "https://discord.com/oauth2/authorize?client_id=1551978817315151882"
@@ -401,22 +403,12 @@ function setMeState() {
   }
 }
 async function loadPlayers() {
-  try {
-    const r = await fetch('players.json?d=' + day, {cache: 'no-store'});
-    const list = r.ok ? await r.json() : [];
-    const opts = ['<option value="">— 선택 —</option>'];
-    if (list.length) list.forEach(p => opts.push(`<option value="${p.id}">${p.name}</option>`));
-    else opts.push('<option value="" disabled>아직 아무도 없어 — #워들에 한 번 붙여넣으면 자동 등록</option>');
-    $('who').innerHTML = opts.join('');
-    if (ME && Array.isArray(list) && list.some(p => p.id === ME.id)) $('who').value = ME.id;
-    else if (ME) opts.push('');
-  } catch (e) {}
   setMeState();
 }
 async function submitResult(manual) {
   if (mode !== 'daily') { toast('연습 모드는 전송 안 해'); return false; }
-  if (!ME) { toast(manual ? '먼저 위에서 "내 디스코드"를 골라줘' : '미연동 — 결과 복사해서 붙여넣어도 집계돼'); return false; }
-  const content = `오늘의 워들 #${num} ${day} ${status === 'won' ? guesses.length : 'X'}/6\n👤 ${ME.id} (${ME.name})\n${gridText()}`;
+  if (!ME) { toast(manual ? '위에서 🔗 Discord 로그인을 눌러줘 (또는 결과 복사 → #워들에 붙여넣기)' : '미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼'); return false; }
+  const content = `오늘의 워들 #${num} ${day} ${status === 'won' ? guesses.length : 'X'}/6\n<@${ME.id}>\n${gridText()}`;
   const body = JSON.stringify({content, username: '오늘의 워들', allowed_mentions: {parse: []}});
   try {
     const r = await fetch(WEBHOOK, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
@@ -487,15 +479,6 @@ $('fr-close').onclick = () => $('fr-overlay').classList.remove('show');
 $('fr-overlay').onclick = e => { if (e.target.id === 'fr-overlay') $('fr-overlay').classList.remove('show'); };
 $('fr-prev').onclick = () => { frIdx++; renderFriends(); };
 $('fr-next').onclick = () => { frIdx--; renderFriends(); };
-$('who').onchange = () => {
-  const sel = $('who');
-  if (!sel.value) { ME = null; localStorage.removeItem('mw-me'); setMeState(); toast('연동 해제'); return; }
-  ME = {id: sel.value, name: sel.options[sel.selectedIndex].textContent};
-  localStorage.setItem('mw-me', JSON.stringify(ME));
-  setMeState();
-  toast(`연동: ${ME.name} — 끝나면 자동 전송`);
-  if (mode === 'daily' && status !== 'playing') submitResult(false);
-};
 $('again-btn').onclick = startPractice;
 $('practice-btn').onclick = startPractice;
 $('theme-btn').onclick = () => document.body.classList.toggle('light');

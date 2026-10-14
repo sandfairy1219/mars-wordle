@@ -24,6 +24,22 @@ for text, exp in cases:
     ok += 1
 print(f"OK 파서 {ok}케이스")
 
+# --- 1-1) 귀속 정규식: 신형 멘션 / 구형 👤 ---
+cases2 = [
+    ("오늘의 워들 #1944 2026-10-14 3/6\n<@1035334701612793876>\n🟩🟩🟩🟩🟩", "1035334701612793876", None),
+    ("오늘의 워들 #1944 3/6\n<@!1360683448020373619>\n🟩🟩🟩🟩🟩", "1360683448020373619", None),
+    ("오늘의 워들 #1944 3/6\n👤 999000000000000001 (연동테스트)\n🟩🟩🟩🟩🟩", "999000000000000001", "연동테스트"),
+]
+for text, exp_id, exp_name in cases2:
+    got_id = wg.ID_RE.search(text)
+    got_name = wg.NAME_RE.search(text)
+    assert (got_id.group(1) if got_id else None) == exp_id, f"ID 추출 실패: {text!r}"
+    assert (got_name.group(1).strip() if got_name else None) == exp_name, f"이름 추출 실패: {text!r}"
+# 그리드 추출(⬜→⬛ 정규화, 5칸 줄만)
+g = wg.extract_grid("오늘의 워들 #1944 3/6\n<@1>\n🟩🟨⬛⬛🟩\n🟩🟩⬜⬜🟩\n\n잡담")
+assert g == "🟩🟨⬛⬛🟩\n🟩🟩⬛⬛🟩", g
+print("OK 귀속·그리드 추출")
+
 # --- 2) 집계/요약/연속 ---
 wg.DB = tempfile.mkdtemp() + "/t.db"
 conn = wg.db()
