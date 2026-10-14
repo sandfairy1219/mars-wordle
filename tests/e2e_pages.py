@@ -55,6 +55,10 @@ def run(pw, width, height, shot=None):
     pg.route("**/api/webhooks/**", lambda route: (
         posted.update(json.loads(route.request.post_data or "{}")),
         route.fulfill(status=204, body="")))
+    # OAuth 콜백용 /users/@me 스텁
+    pg.route("**/api/v10/users/@me", lambda route: route.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps({"id": "777000000000000042", "username": "tester", "global_name": "테스터"})))
     pg.goto(URL, wait_until="load", timeout=45000)
     pg.wait_for_timeout(4000)
 
@@ -137,6 +141,23 @@ def run(pw, width, height, shot=None):
     pg.click("#fr-close"); pg.wait_for_timeout(300)
     assert not pg.evaluate("document.getElementById('fr-overlay').classList.contains('show')"), "패널 닫기 실패"
     print("OK 친구들 결과 패널(순위·👑·그리드·날짜이동)")
+
+    # 3-3) Discord 로그인(OAuth implicit) 콜백 처리
+    assert pg.evaluate("document.getElementById('login-btn').textContent").startswith("🔗")
+    pg.goto(URL + "?oauth=1#access_token=FAKE&token_type=Bearer&expires_in=604800&scope=identify", wait_until="load")
+    pg.wait_for_timeout(2500)
+    oauth = pg.evaluate("({me: localStorage.getItem('mw-me'), state: document.getElementById('me-state').textContent, hash: location.hash, btn: document.getElementById('login-btn').textContent})")
+    print("OAUTH:", oauth)
+    assert '"via":"oauth"' in (oauth["me"] or ""), "OAuth 신원 저장 실패: %s" % oauth["me"]
+    assert "테스터" in oauth["state"], "연동 표시 실패: %s" % oauth["state"]
+    assert oauth["hash"] == "", "토큰 해시가 남음"
+    posted.clear()
+    pg.evaluate("submittedDay = null")            # 자동 전송 가드 해제 후 수동 전송
+    pg.click("#send-btn"); pg.wait_for_timeout(1500)
+    body = posted.get("content", "")
+    print("oauth submit:", body[:120].replace("\n", "|"))
+    assert "👤 777000000000000042 (테스터)" in body, "로그인 신원으로 전송 안 됨: %s" % body
+    print("OK Discord 로그인 연동(콜백·신원·자동전송)")
 
     # 4) 레이아웃: 가로 스크롤 없음 + 타일 5개 한 줄
     lay = pg.evaluate("({iw: window.innerWidth, sw: document.documentElement.scrollWidth, tiles: document.querySelector('.row').childElementCount, tileW: Math.round(document.querySelector('.tile').getBoundingClientRect().width)})")

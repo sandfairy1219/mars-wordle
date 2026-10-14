@@ -21,11 +21,13 @@ h1{font-size:20px;letter-spacing:2px;white-space:nowrap}
 #meta{font-size:11px;color:var(--sub);text-align:center;line-height:1.35}
 header button{background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;
 padding:6px 9px;cursor:pointer;font-size:12px;white-space:nowrap}
-#me-bar{width:100%;max-width:520px;display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--sub)}
-#me-bar select{flex:1;min-width:0;background:var(--modal);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:12px}
+#me-bar{width:100%;max-width:520px;display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--sub);flex-wrap:wrap}
+#me-bar select{flex:1;min-width:110px;background:var(--modal);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:12px}
 #me-state{white-space:nowrap;font-weight:700}
 #me-state.on{color:var(--correct)}
 #me-bar button{background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer;white-space:nowrap}
+#login-btn{border-color:var(--correct) !important;color:var(--correct)}
+.fr-av{width:22px;height:22px;border-radius:50%;background:var(--key);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-bottom:3px}
 a.btn{background:var(--key);color:#fff;text-decoration:none;display:inline-block;margin:10px 4px 0;padding:11px 16px;border-radius:8px;font-weight:700;font-size:14px}
 #fr-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:25;padding:14px}
 #fr-overlay.show{display:flex}
@@ -91,8 +93,8 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="practice-btn" title="연습 모드">🔁 연습</button>
 </header>
 <div id="me-bar">
-  <span>디스코드</span>
-  <select id="who"><option value="">— 선택 —</option></select>
+  <button id="login-btn" title="Discord 계정으로 연동">🔗 Discord 로그인</button>
+  <select id="who"><option value="">또는 이름 선택</option></select>
   <span id="me-state">미연동</span>
   <button id="fr-btn" title="친구들 결과 보기">👥 친구들</button>
 </div>
@@ -356,9 +358,40 @@ const WEBHOOK = "https://discord.com/api/webhooks/REDACTED";
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
 let ME = null, submittedDay = null;
 try { ME = JSON.parse(localStorage.getItem('mw-me') || 'null'); } catch (e) { ME = null; }
+/* Discord OAuth2 (implicit, identify) — redirect_uri는 포털에 등록된 정확한 값이어야 함 */
+const OAUTH_REDIRECT = "https://sandfairy1219.github.io/mars-wordle/";
+const AUTH_URL = "https://discord.com/oauth2/authorize?client_id=1551978817315151882"
+  + "&response_type=token&scope=identify&prompt=none"
+  + "&redirect_uri=" + encodeURIComponent(OAUTH_REDIRECT);
+async function handleOAuth() {
+  const h = (location.hash || "").slice(1);
+  if (!h || (!h.includes("access_token") && !h.includes("error"))) return false;
+  const p = new URLSearchParams(h);
+  history.replaceState(null, "", location.pathname + location.search);   // 토큰 흔적 즉시 제거
+  if (p.get("error")) { toast(p.get("error") === "access_denied" ? "연동 취소됨" : "연동 실패: " + p.get("error")); return false; }
+  try {
+    const r = await fetch("https://discord.com/api/v10/users/@me", {headers: {Authorization: "Bearer " + p.get("access_token")}});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const u = await r.json();
+    ME = {id: u.id, name: u.global_name || u.username, via: "oauth"};
+    localStorage.setItem("mw-me", JSON.stringify(ME));
+    setMeState();
+    toast(`연동 완료: ${ME.name} — 끝나면 자동 전송`);
+    if (mode === "daily" && status !== "playing" && submittedDay !== day) submitResult(false);
+    return true;
+  } catch (e) { toast("연동 실패 — 아래에서 이름 선택으로도 가능"); return false; }
+}
 function setMeState() {
-  const el = $('me-state');
-  if (ME) { el.textContent = '연동됨 · 자동 전송'; el.classList.add('on'); } else { el.textContent = '미연동'; el.classList.remove('on'); }
+  const el = $('me-state'), btn = $('login-btn');
+  if (ME) {
+    el.textContent = (ME.via === 'oauth' ? '✅ ' : '') + ME.name + ' · 자동전송';
+    el.classList.add('on');
+    if (btn) btn.textContent = ME.via === 'oauth' ? '🔗 계정 변경' : '🔗 Discord 로그인';
+  } else {
+    el.textContent = '미연동';
+    el.classList.remove('on');
+    if (btn) btn.textContent = '🔗 Discord 로그인';
+  }
 }
 async function loadPlayers() {
   try {
@@ -414,7 +447,9 @@ function renderFriends() {
   list.innerHTML = d.players.map(p => {
     const grid = (p.grid || '').split('\n').filter(Boolean)
       .map(l => `<div>${esc(l)}</div>`).join('') || '<span style="color:var(--sub)">그리드 없음</span>';
-    return `<div class="fr-row"><div><div class="fr-score">${rank(p.score) === best ? '<span class="fr-best">👑</span> ' : ''}${esc(p.score)}/6</div>`
+    const initial = esc((p.name || '?').trim().slice(0, 1).toUpperCase());
+    return `<div class="fr-row"><div><div class="fr-av">${initial}</div>`
+      + `<div class="fr-score">${rank(p.score) === best ? '<span class="fr-best">👑</span> ' : ''}${esc(p.score)}/6</div>`
       + `<div class="fr-name" title="${esc(p.name)}">${esc(p.name)}</div></div><div class="fr-grid">${grid}</div></div>`;
   }).join('');
   note.textContent = `${frIdx + 1} / ${days.length}일${days.length > 1 ? ' (◀ ▶ 로 이동)' : ''} · 집계는 5분마다 갱신`;
@@ -434,6 +469,7 @@ document.addEventListener('keydown', e => {
 });
 $('share-btn').onclick = copyShare;
 $('send-btn').onclick = () => submitResult(true);
+$('login-btn').onclick = () => { location.href = AUTH_URL; };
 $('fr-btn').onclick = showFriends;
 $('fr-close').onclick = () => $('fr-overlay').classList.remove('show');
 $('fr-overlay').onclick = e => { if (e.target.id === 'fr-overlay') $('fr-overlay').classList.remove('show'); };
@@ -452,7 +488,9 @@ $('again-btn').onclick = startPractice;
 $('practice-btn').onclick = startPractice;
 $('theme-btn').onclick = () => document.body.classList.toggle('light');
 setInterval(() => { if (mode === 'daily' && dstr() !== day) { toast('새 문제!'); startDaily(); } }, 30000);   // 자정 넘김 자동 갱신
-buildBoard(); buildKeyboard(); startDaily();
+buildBoard(); buildKeyboard();
+handleOAuth();                     // Discord 로그인 콜백(#access_token=…)이면 신원 확보
+startDaily();
 </script>
 </body>
 </html>
