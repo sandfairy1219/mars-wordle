@@ -75,7 +75,7 @@ def run(pw, width, height, shot=None):
     assert "999000000000000001" in opts, "players.json 드롭다운 미반영: %s" % opts
     pg.select_option("#who", "999000000000000001")
     pg.wait_for_timeout(500)
-    assert "연동됨" in pg.evaluate("document.getElementById('me-state').textContent"), "연동 상태 표시 실패"
+    assert "연동테스트" in pg.evaluate("document.getElementById('me-state').textContent"), "연동 상태 표시 실패"
     assert pg.evaluate("JSON.parse(localStorage.getItem('mw-me')).id") == "999000000000000001", "연동 정보 미저장"
     print("OK 디스코드 연동(players.json → 드롭다운 → 저장)")
 
@@ -124,9 +124,10 @@ def run(pw, width, height, shot=None):
     assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단 누락"
     print("OK 결과 자동 전송(웹훅·귀속·멘션차단)")
 
-    # 3-2) 친구들 결과 패널 (공식 앱 결과화면 대체)
-    pg.click("#fr-btn")
+    # 3-2) 친구들 결과 패널 (공식 앱 결과화면 대체) — 모달 안 버튼으로 진입
+    pg.click("#friends-btn")
     pg.wait_for_timeout(900)
+    assert not pg.evaluate("document.getElementById('overlay').classList.contains('show')"), "모달이 안 닫힘"
     fr = pg.evaluate("({open: document.getElementById('fr-overlay').classList.contains('show'), label: document.getElementById('fr-label').textContent, rows: document.querySelectorAll('.fr-row').length, crowns: document.querySelectorAll('.fr-best').length, grids: document.querySelectorAll('.fr-grid div').length, note: document.getElementById('fr-note').textContent})")
     print("FRIENDS:", fr)
     assert fr["open"] and fr["rows"] == 3, "친구들 패널 미표시: %s" % fr

@@ -114,7 +114,9 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <div id="countdown"></div>
   <button id="share-btn">📋 결과 복사</button>
   <button id="send-btn">📮 결과 전송</button>
+  <button id="friends-btn">👥 친구들 결과</button>
   <a class="btn" id="chan-btn" href="https://discord.com/channels/1512107856390783077/1559893272166662178" target="_blank" rel="noopener">#워들 열기</a>
+  <button id="close-btn">닫기</button>
   <button id="again-btn">연습 한 판</button>
 </div></div>
 <div id="fr-overlay"><div id="fr">
@@ -469,6 +471,9 @@ document.addEventListener('keydown', e => {
 });
 $('share-btn').onclick = copyShare;
 $('send-btn').onclick = () => submitResult(true);
+$('friends-btn').onclick = () => { hideModal(); showFriends(); };
+$('close-btn').onclick = hideModal;
+$('overlay').onclick = e => { if (e.target.id === 'overlay') hideModal(); };
 $('login-btn').onclick = () => { location.href = AUTH_URL; };
 $('fr-btn').onclick = showFriends;
 $('fr-close').onclick = () => $('fr-overlay').classList.remove('show');
