@@ -2,6 +2,7 @@
 """배포된 워들 페이지 E2E — 실제 브라우저로 한 판 끝까지 플레이한다.
 사용: /home/ubuntu/.venvs/pw/bin/python tests/e2e_pages.py [URL]
 """
+import json
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -37,6 +38,14 @@ def run(pw, width, height, shot=None):
     errs, cons = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.on("console", lambda m: cons.append(f"{m.type}: {m.text}"))
+    # --- 디스코드 연동 경로 검증: players.json/웹훅을 가로채 실제 채널에 안 쏘게 ---
+    posted = {}
+    pg.route("**/players.json*", lambda route: route.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps([{"id": "999000000000000001", "name": "연동테스트"}], ensure_ascii=False)))
+    pg.route("**/api/webhooks/**", lambda route: (
+        posted.update(json.loads(route.request.post_data or "{}")),
+        route.fulfill(status=204, body="")))
     pg.goto(URL, wait_until="load", timeout=45000)
     pg.wait_for_timeout(4000)
 
@@ -47,6 +56,15 @@ def run(pw, width, height, shot=None):
     assert not state["source"].startswith("오프라인"), "NYT 소스 아님: " + state["source"]
     assert state["words"] > 10000, "단어사전 로드 실패: %s" % state["words"]
     today_word = state["answer"]
+
+    # 0) 디스코드 연동: 드롭다운이 players.json으로 채워지고 선택이 저장돼야 함
+    opts = pg.evaluate("Array.from(document.getElementById('who').options).map(o=>o.value)")
+    assert "999000000000000001" in opts, "players.json 드롭다운 미반영: %s" % opts
+    pg.select_option("#who", "999000000000000001")
+    pg.wait_for_timeout(500)
+    assert "연동됨" in pg.evaluate("document.getElementById('me-state').textContent"), "연동 상태 표시 실패"
+    assert pg.evaluate("JSON.parse(localStorage.getItem('mw-me')).id") == "999000000000000001", "연동 정보 미저장"
+    print("OK 디스코드 연동(players.json → 드롭다운 → 저장)")
 
     # 1) 사전에 없는 단어는 거부돼야 함
     pg.keyboard.type("ZZZZZ")
@@ -82,6 +100,16 @@ def run(pw, width, height, shot=None):
     assert ("#%s" % state["num"]) in end["share"] and "2/6" in end["share"], "공유 텍스트 형식 이상"
     assert end["cd"].startswith("다음 문제까지"), "카운트다운 없음"
     print("OK 승리·모달·공유·카운트다운")
+
+    # 3-1) 게임 종료 시 결과가 웹훅으로 자동 전송돼야 함
+    pg.wait_for_timeout(1500)
+    print("posted:", json.dumps(posted, ensure_ascii=False)[:220])
+    assert posted, "결과 자동 전송(POST) 안 됨"
+    body = posted.get("content", "")
+    assert "👤 999000000000000001 (연동테스트)" in body, "귀속 라인 누락: %s" % body
+    assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
+    assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단 누락"
+    print("OK 결과 자동 전송(웹훅·귀속·멘션차단)")
 
     # 4) 레이아웃: 가로 스크롤 없음 + 타일 5개 한 줄
     lay = pg.evaluate("({iw: window.innerWidth, sw: document.documentElement.scrollWidth, tiles: document.querySelector('.row').childElementCount, tileW: Math.round(document.querySelector('.tile').getBoundingClientRect().width)})")
