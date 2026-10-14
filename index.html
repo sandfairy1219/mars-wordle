@@ -363,15 +363,16 @@ async function startDaily() {
 /* ---------- 디스코드 연동 (공식 Wordle 앱 대체 — 결과 자동 전송 + 그룹 집계) ---------- */
 const WEBHOOK = "https://discord.com/api/webhooks/REDACTED";
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
-let ME = null, submittedDay = null;
+let ME = null, submittedDay = null, lastSubmitTs = 0;
 try {
   ME = JSON.parse(localStorage.getItem('mw-me') || 'null');
   if (ME && ME.via !== 'oauth') { ME = null; localStorage.removeItem('mw-me'); }   // 옛 '이름 선택' 연동은 폐기(위조 가능했음)
 } catch (e) { ME = null; }
-/* Discord OAuth2 (implicit, identify) — redirect_uri는 포털에 등록된 정확한 값이어야 함 */
+/* Discord OAuth2 (implicit, identify) — redirect_uri는 포털에 등록된 정확한 값이어야 함.
+   ⚠️ prompt=none 은 '이미 승인한 사용자'에게만 무음 처리되고, 처음 쓰는 사람은 consent_required 로 실패한다(실사용 제보) → 쓰지 않는다. */
 const OAUTH_REDIRECT = "https://sandfairy1219.github.io/mars-wordle/";
 const AUTH_URL = "https://discord.com/oauth2/authorize?client_id=1551978817315151882"
-  + "&response_type=token&scope=identify&prompt=none"
+  + "&response_type=token&scope=identify"
   + "&redirect_uri=" + encodeURIComponent(OAUTH_REDIRECT);
 async function handleOAuth() {
   const h = (location.hash || "").slice(1);
@@ -409,15 +410,16 @@ async function loadPlayers() {
 async function submitResult(manual) {
   if (mode !== 'daily') { toast('연습 모드는 전송 안 해'); return false; }
   if (!ME) { toast(manual ? '위에서 🔗 Discord 로그인을 눌러줘 (또는 결과 복사 → #워들에 붙여넣기)' : '미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼'); return false; }
+  if (manual && submittedDay === day && Date.now() - lastSubmitTs < 15000) { toast('방금 전송했어 — 채널 확인해봐'); return false; }   // 중복 전송 방지
   const content = `오늘의 워들 #${num} ${day} ${status === 'won' ? guesses.length : 'X'}/6\n<@${ME.id}>\n${gridText()}`;
   const body = JSON.stringify({content, username: '오늘의 워들', allowed_mentions: {parse: [], users: [ME.id]}});
   try {
     const r = await fetch(WEBHOOK, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
-    if (r.ok) { submittedDay = day; toast('결과를 #워들에 전송했어'); return true; }
+    if (r.ok) { submittedDay = day; lastSubmitTs = Date.now(); toast('결과를 #워들에 전송했어'); return true; }
   } catch (e) { /* CORS 차단 시 아래 no-cors 폴백 */ }
   try {
     await fetch(WEBHOOK, {method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body});
-    submittedDay = day; toast('결과 전송했어 (#워들 확인)'); return true;
+    submittedDay = day; lastSubmitTs = Date.now(); toast('결과 전송했어 (#워들 확인)'); return true;
   } catch (e) { toast('전송 실패 — "결과 복사" 후 #워들에 붙여넣어줘'); return false; }
 }
 
