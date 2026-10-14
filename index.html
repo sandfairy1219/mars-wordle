@@ -217,15 +217,15 @@ function submitGuess() {
   if (status !== 'playing' || animating || overlayOpen) return;
   if (cur.length < 5) { toast('글자 5개를 채워줘'); shakeRow(); return; }
   if (!WORDSET.has(cur)) { toast('단어 목록에 없는 말이야'); shakeRow(); return; }
-  const results = score(cur, answer), rowIdx = guesses.length;
-  guesses.push({guess: cur, results});
+  const g = cur, results = score(g, answer), rowIdx = guesses.length;
+  guesses.push({guess: g, results});
   animating = true;
   for (let i = 0; i < 5; i++) {
     const t = tileAt(rowIdx, i);
     setTimeout(() => t.classList.add('flip'), i * FLIP);
     setTimeout(() => {
       t.classList.add(results[i]);
-      const k = cur[i];
+      const k = g[i];                                  // cur 는 곧 비워지므로 지역 변수로 캡처
       if (!keyState[k] || PRIO[results[i]] > PRIO[keyState[k]]) {
         keyState[k] = results[i];
         const el = $('k-' + k); el.classList.remove('correct','present','absent'); el.classList.add(results[i]);
