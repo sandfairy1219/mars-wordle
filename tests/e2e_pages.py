@@ -34,15 +34,14 @@ def run(pw, width, height, shot=None):
     except Exception as e:
         print("default launch failed (%s) -> executable_path" % str(e)[:80])
         b = pw.chromium.launch(headless=True, executable_path=CHROME)
-    pg = b.new_page(viewport={"width": width, "height": height})
+    ctx = b.new_context(viewport={"width": width, "height": height}, permissions=["clipboard-read", "clipboard-write"])
+    pg = ctx.new_page()
     errs, cons = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.on("console", lambda m: cons.append(f"{m.type}: {m.text}"))
-    # --- 디스코드 연동 경로 검증: players.json/웹훅을 가로채 실제 채널에 안 쏘게 ---
-    posted = {}
-    pg.route("**/api/webhooks/**", lambda route: (
-        posted.update(json.loads(route.request.post_data or "{}")),
-        route.fulfill(status=204, body="")))
+    # --- 보안 회귀: 페이지 어디에도 웹훅(시크릿)이 없어야 함 + window.open 가로채기 ---
+    opened = []
+    pg.add_init_script("window.__opened=[]; window.open=(u)=>{window.__opened.push(u); return null;}")
     FR_DAYS = {"days": [
         {"n": 1944, "date": "2026-10-14", "players": [
             {"name": "친구A", "score": "3", "grid": "🟩🟨⬛⬛🟩\n🟩🟩🟨⬛⬛\n🟩🟩🟩🟩🟩"},
@@ -52,13 +51,26 @@ def run(pw, width, height, shot=None):
     ]}
     pg.route("**/results.json*", lambda route: route.fulfill(
         status=200, content_type="application/json", body=json.dumps(FR_DAYS, ensure_ascii=False)))
-    pg.route("**/api/webhooks/**", lambda route: (
-        posted.update(json.loads(route.request.post_data or "{}")),
-        route.fulfill(status=204, body="")))
     # OAuth 콜백용 /users/@me 스텁
     pg.route("**/api/v10/users/@me", lambda route: route.fulfill(
         status=200, content_type="application/json",
         body=json.dumps({"id": "777000000000000042", "username": "tester", "global_name": "테스터"})))
+    # 서버측 릴레이(Cloudflare Worker /submit) 스텁 — 전송 페이로드 캡처 + CORS 프리플라이트 처리
+    sent = []
+
+    def _worker(route):
+        if route.request.method == "OPTIONS":
+            return route.fulfill(status=204, headers={"Access-Control-Allow-Origin": "*",
+                                                      "Access-Control-Allow-Methods": "POST, OPTIONS",
+                                                      "Access-Control-Allow-Headers": "Content-Type"})
+        try:
+            sent.append(json.loads(route.request.post_data or "{}"))
+        except Exception:
+            sent.append({})
+        return route.fulfill(status=200, content_type="application/json",
+                             headers={"Access-Control-Allow-Origin": "*"}, body='{"ok":true,"n":1944}')
+
+    pg.route("**/submit", _worker)
     pg.goto(URL, wait_until="load", timeout=45000)
     pg.wait_for_timeout(4000)
 
@@ -110,11 +122,18 @@ def run(pw, width, height, shot=None):
     assert end["cd"].startswith("다음 문제까지"), "카운트다운 없음"
     print("OK 승리·모달·공유·카운트다운")
 
-    # 3-1) 미연동 상태에서는 자동 전송이 일어나면 안 됨(위조/오귀속 방지)
-    pg.wait_for_timeout(1500)
-    print("unlinked posted:", json.dumps(posted, ensure_ascii=False)[:150])
-    assert not posted, "미연동인데 결과가 전송됨: %s" % posted
-    print("OK 미연동 시 자동 전송 없음")
+    # 3-1) 페이지에 시크릿(웹훅 URL)이 없어야 함 + 결과 올리기 = 복사 + 채널 열기
+    leaked = pg.evaluate("document.documentElement.outerHTML.includes('api/webhooks') ? 'LEAK' : ''")
+    assert not leaked, "페이지 소스에 웹훅(시크릿)이 남아있음 — 클라이언트 노출"
+    pg.click("#send-btn")
+    pg.wait_for_timeout(1200)
+    opened = pg.evaluate("window.__opened")
+    clip = pg.evaluate("navigator.clipboard.readText()")
+    print("opened:", opened, "| clipboard:", clip[:60].replace("\n", "|"))
+    assert opened and "discord.com/channels/1512107856390783077/1559893272166662178" in opened[0], "채널 열기 실패: %s" % opened
+    assert ("#%s" % state["num"]) in clip and "2/6" in clip, "복사 텍스트 형식 이상: %r" % clip
+    assert "api/webhooks" not in clip and "<@" not in clip, "복사 텍스트에 시크릿/멘션 혼입: %r" % clip
+    print("OK 시크릿 0노출 · 결과 복사+채널 열기(붙여넣기 경로)")
 
     # 3-2) 친구들 결과 패널 (공식 앱 결과화면 대체) — 모달 안 버튼으로 진입
     pg.click("#friends-btn")
@@ -145,19 +164,20 @@ def run(pw, width, height, shot=None):
     assert '"via":"oauth"' in (oauth["me"] or ""), "OAuth 신원 저장 실패: %s" % oauth["me"]
     assert "테스터" in oauth["state"], "연동 표시 실패: %s" % oauth["state"]
     assert oauth["hash"] == "", "토큰 해시가 남음"
-    # 로그인 직후: 이미 끝난 오늘 게임이 자동 전송돼야 함(귀속 = 로그인 신원)
-    pg.wait_for_timeout(1200)
-    body = posted.get("content", "")
-    print("oauth auto submit:", body[:130].replace("\n", "|"))
-    assert "<@777000000000000042>" in body, "멘션 형식으로 자동 전송 안 됨: %s" % body
-    assert "👤" not in body and "777000000000000042 (" not in body, "id/이름 노출됨: %s" % body
-    assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
-    assert posted.get("allowed_mentions") == {"parse": [], "users": ["777000000000000042"]}, "멘션 설정(본인만 허용·핑 없음) 누락: %s" % posted.get("allowed_mentions")
-    posted.clear()
-    pg.evaluate("submittedDay = null")            # 수동 재전송 경로도 확인
-    pg.click("#send-btn"); pg.wait_for_timeout(1500)
-    assert "<@777000000000000042>" in posted.get("content", ""), "수동 전송 실패"
-    print("OK Discord 로그인 연동(콜백·신원·멘션 전송·자동/수동)")
+    pg.wait_for_timeout(2000)
+    assert pg.evaluate("document.documentElement.outerHTML.includes('api/webhooks') ? 1 : 0") == 0, "로그인 후 소스에 시크릿 노출"
+    # 로그인 상태로 이미 끝난 게임 복원 → 서버측(워커) 자동 전송이 나가야 함
+    assert sent, "워커(/submit) 호출이 없음 — 자동 전송 경로 미동작"
+    b = sent[-1]
+    print("SUBMIT payload:", json.dumps(b, ensure_ascii=False)[:130])
+    assert b.get("token") == "FAKE", "OAuth 토큰이 전송되지 않음: %s" % b
+    txt = b.get("text", "")
+    assert ("#%s" % state["num"]) in txt and "2/6" in txt, "전송 텍스트 형식 이상: %r" % txt
+    assert "api/webhooks" not in txt and "<@" not in txt, "전송 텍스트에 시크릿/멘션 혼입: %r" % txt
+    n_before = len(sent)
+    pg.click("#send-btn"); pg.wait_for_timeout(900)
+    assert len(sent) == n_before, "중복 전송 가드 실패"
+    print("OK 서버측(워커) 전송 — 브라우저는 토큰+결과만 보낸다(웹훅 없음) · 중복가드 OK")
 
     # 4) 레이아웃: 가로 스크롤 없음 + 타일 5개 한 줄
     lay = pg.evaluate("({iw: window.innerWidth, sw: document.documentElement.scrollWidth, tiles: document.querySelector('.row').childElementCount, tileW: Math.round(document.querySelector('.tile').getBoundingClientRect().width)})")
@@ -176,7 +196,7 @@ def run(pw, width, height, shot=None):
     assert not errs, "JS 에러: %s" % errs[:3]
     bad = [c for c in cons if c.startswith("error")]
     assert not bad, "콘솔 에러: %s" % bad[:3]
-    b.close()
+    ctx.close(); b.close()
     return today_word, state["num"]
 
 

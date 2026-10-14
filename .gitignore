@@ -1,0 +1,8 @@
+# 시크릿·로컬 상태는 커밋하지 않는다 (2026-10-14 워들 웹훅 유출 대응)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.token
+.secrets*

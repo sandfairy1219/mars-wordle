@@ -99,7 +99,7 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
 </header>
 <div id="me-bar">
   <button id="login-btn" title="Discord 계정으로 연동">🔗 Discord 로그인</button>
-  <span id="me-state">미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼</span>
+  <span id="me-state">미연동 — 🔗 로그인하면 결과가 자동 전송돼</span>
   <button id="fr-btn" title="친구들 결과 보기">👥 친구들</button>
 </div>
 <div id="board"></div>
@@ -117,7 +117,7 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   </div>
   <div id="countdown"></div>
   <button id="share-btn">📋 결과 복사</button>
-  <button id="send-btn">📮 결과 전송</button>
+  <button id="send-btn">📮 #워들에 전송</button>
   <button id="friends-btn">👥 친구들 결과</button>
   <a class="btn" id="chan-btn" href="https://discord.com/channels/1512107856390783077/1559893272166662178" target="_blank" rel="noopener">#워들 열기</a>
   <button id="close-btn">닫기</button>
@@ -131,8 +131,8 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="fr-close">닫기</button>
 </div></div>
 <footer>매일 자정(한국시간) 새 문제 · 정답은 NYT Wordle API 기준이라 <b>디스코드 공식 Wordle과 같은 날 같은 단어</b>야.<br>
-<b>🔗 Discord 로그인</b>하면 결과가 자동으로 <b>#워들</b>에 올라가고, 매일 0시에 그룹 연속·순위 요약이 뜬다.<br>
-로그인 없이 하려면 <b>결과 복사</b> → #워들에 붙여넣기 (내 계정으로 올라가서 자동 집계됨)</footer>
+게임이 끝나면 <b>📮 #워들에 전송</b> 한 번이면 끝(<b>🔗 로그인</b> 필요) — 로그인 없이도 <b>📋 결과 복사</b> → #워들 붙여넣기로 집계된다.<br>
+매일 0시에 그룹 연속·순위 요약이 <b>#워들</b>에 뜨고, 누가 어떻게 풀었는지는 <b>👥 친구들 결과</b>에서 그리드로 볼 수 있다.</footer>
 
 <script>
 'use strict';
@@ -294,7 +294,7 @@ async function copyShare() {
   const t = shareText();
   try { await navigator.clipboard.writeText(t); }
   catch (e) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
-  toast('복사됨 — 디스코드에 붙여넣어');
+  toast('복사됨 — #워들에 붙여넣어');
 }
 function renderStats() {
   $('st-played').textContent = stats.played;
@@ -313,7 +313,7 @@ function endGame(won) {
     }
     saveDaily(true);
   }
-  if (mode === 'daily' && ME && submittedDay !== day) submitResult(false);
+  if (mode === 'daily' && TOK && submittedDay !== day) submitResult(false);   // 연동돼 있으면 서버측(Worker)으로 자동 전송
   setTimeout(() => showModal(won), 900);
 }
 function tickCountdown() {
@@ -357,22 +357,33 @@ async function startDaily() {
     guesses = prev.guesses; status = prev.status;
     if (status !== 'playing') setTimeout(() => showModal(status === 'won'), 400);
   }
-  if (ME && mode === 'daily' && status !== 'playing' && submittedDay !== day) submitResult(false);   // 로그인 후 이미 끝난 게임 자동 전송
+  if (TOK && mode === 'daily' && status !== 'playing' && submittedDay !== day) submitResult(false);   // 로그인 후 이미 끝난 게임 자동 전송
 }
 
-/* ---------- 디스코드 연동 (공식 Wordle 앱 대체 — 결과 자동 전송 + 그룹 집계) ---------- */
-const WEBHOOK = "https://discord.com/api/webhooks/REDACTED";
+/* ---------- 디스코드 연동 ----------
+   ⚠️ 보안 이력: 예전엔 결과 자동전송용 디스코드 웹훅 URL을 이 파일에 하드코딩했다. 이 페이지는 정적 호스팅
+   (GitHub Pages)이라 JS가 방문자 브라우저로 그대로 전달되고, 소스보기 = 웹훅 노출 → 실제로 제3자
+   (FriendlyScanner)가 그 웹훅으로 @everyone 스팸을 올렸다(2026-10-14 #워들). 이제 웹훅은 서버측
+   Cloudflare Worker(wordle-submit)의 시크릿에만 있고, 이 페이지는 그 API만 호출한다.
+   브라우저가 가진 건 '내 계정 토큰'뿐 → 남의 이름으로 올리거나 채널을 도배할 수 없다.
+   Worker는 ① 토큰 소유자 확인 ② MARS II 길드 멤버 여부 확인 후에만 게시한다(= 외부인 게시 불가). */
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
-let ME = null, submittedDay = null, lastSubmitTs = 0;
+const SUBMIT_API = "https://wordle-submit.sandfairy1219.workers.dev/submit";
+let ME = null, TOK = null, submittedDay = null, lastSubmitTs = 0;
 try {
   ME = JSON.parse(localStorage.getItem('mw-me') || 'null');
   if (ME && ME.via !== 'oauth') { ME = null; localStorage.removeItem('mw-me'); }   // 옛 '이름 선택' 연동은 폐기(위조 가능했음)
 } catch (e) { ME = null; }
-/* Discord OAuth2 (implicit, identify) — redirect_uri는 포털에 등록된 정확한 값이어야 함.
+try {   // OAuth 액세스 토큰 — 만료(exp)까지만 보관하고 서버측 제출 인증에만 쓴다(시크릿 아님)
+  TOK = JSON.parse(localStorage.getItem('mw-tok') || 'null');
+  if (!TOK || !TOK.token || !(TOK.exp > Date.now())) { TOK = null; localStorage.removeItem('mw-tok'); }
+} catch (e) { TOK = null; }
+/* Discord OAuth2 (implicit) — redirect_uri는 포털에 등록된 정확한 값이어야 함.
+   scope=identify(내 계정) + guilds(서버 멤버 확인) → Worker가 이 토큰으로 '멤버인지'를 검증한다.
    ⚠️ prompt=none 은 '이미 승인한 사용자'에게만 무음 처리되고, 처음 쓰는 사람은 consent_required 로 실패한다(실사용 제보) → 쓰지 않는다. */
 const OAUTH_REDIRECT = "https://sandfairy1219.github.io/mars-wordle/";
 const AUTH_URL = "https://discord.com/oauth2/authorize?client_id=1551978817315151882"
-  + "&response_type=token&scope=identify"
+  + "&response_type=token&scope=identify%20guilds"
   + "&redirect_uri=" + encodeURIComponent(OAUTH_REDIRECT);
 async function handleOAuth() {
   const h = (location.hash || "").slice(1);
@@ -385,17 +396,19 @@ async function handleOAuth() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const u = await r.json();
     ME = {id: u.id, name: u.global_name || u.username, via: "oauth"};
+    TOK = {token: p.get("access_token"), exp: Date.now() + Math.max(60, (+p.get("expires_in") || 604800) - 60) * 1000};
     localStorage.setItem("mw-me", JSON.stringify(ME));
+    localStorage.setItem("mw-tok", JSON.stringify(TOK));
     setMeState();
-    toast(`연동 완료: ${ME.name} — 끝나면 자동 전송`);
-    if (mode === "daily" && status !== "playing" && submittedDay !== day) submitResult(false);
+    toast(`연동 완료: ${ME.name} — 끝나면 자동 전송돼`);
+    if (mode === "daily" && status !== "playing" && submittedDay !== day) submitResult(false);   // 이미 끝난 게임이면 바로 올린다
     return true;
-  } catch (e) { toast("연동 실패 — 아래에서 이름 선택으로도 가능"); return false; }
+  } catch (e) { toast("연동 실패 — 다시 시도하거나 📋 결과 복사 → #워들 붙여넣기"); return false; }
 }
 function setMeState() {
   const el = $('me-state'), btn = $('login-btn');
   if (ME) {
-    el.textContent = (ME.via === 'oauth' ? '✅ ' : '') + ME.name + ' · 자동전송';
+    el.textContent = (ME.via === 'oauth' ? '✅ ' : '') + ME.name + (TOK ? ' · 자동전송' : ' · 재로그인 필요');
     el.classList.add('on');
     if (btn) btn.textContent = ME.via === 'oauth' ? '🔗 계정 변경' : '🔗 Discord 로그인';
   } else {
@@ -407,20 +420,40 @@ function setMeState() {
 async function loadPlayers() {
   setMeState();
 }
+/* 서버측(Worker) 경유 전송 — 브라우저엔 웹훅이 없다. 토큰이 없거나 실패하면 '복사 → 붙여넣기'로 폴백. */
+async function fallbackPaste(msg) {
+  await copyShare();
+  window.open(CHANNEL_URL, '_blank', 'noopener');
+  toast(msg || '복사했어 — 열린 #워들에 붙여넣기(Ctrl+V)');
+  return false;
+}
 async function submitResult(manual) {
-  if (mode !== 'daily') { toast('연습 모드는 전송 안 해'); return false; }
-  if (!ME) { toast(manual ? '위에서 🔗 Discord 로그인을 눌러줘 (또는 결과 복사 → #워들에 붙여넣기)' : '미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼'); return false; }
-  if (manual && submittedDay === day && Date.now() - lastSubmitTs < 15000) { toast('방금 전송했어 — 채널 확인해봐'); return false; }   // 중복 전송 방지
-  const content = `오늘의 워들 #${num} ${day} ${status === 'won' ? guesses.length : 'X'}/6\n<@${ME.id}>\n${gridText()}`;
-  const body = JSON.stringify({content, username: '오늘의 워들', allowed_mentions: {parse: [], users: [ME.id]}});
+  if (mode !== 'daily') { toast('연습 모드는 올리지 마'); return false; }
+  if (!TOK) {   // 미연동 — 수동 버튼이면 복사+채널 열기로 안내, 자동이면 조용히
+    return manual ? fallbackPaste('로그인이 안 돼 있어서 복사했어 — #워들에 붙여넣기(Ctrl+V)') : false;
+  }
+  if (submittedDay === day && Date.now() - lastSubmitTs < 15000) {   // 중복 전송 방지
+    if (manual) toast('방금 전송했어 — #워들 확인해봐');
+    return false;
+  }
   try {
-    const r = await fetch(WEBHOOK, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
-    if (r.ok) { submittedDay = day; lastSubmitTs = Date.now(); toast('결과를 #워들에 전송했어'); return true; }
-  } catch (e) { /* CORS 차단 시 아래 no-cors 폴백 */ }
-  try {
-    await fetch(WEBHOOK, {method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body});
-    submittedDay = day; lastSubmitTs = Date.now(); toast('결과 전송했어 (#워들 확인)'); return true;
-  } catch (e) { toast('전송 실패 — "결과 복사" 후 #워들에 붙여넣어줘'); return false; }
+    const r = await fetch(SUBMIT_API, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: TOK.token, text: shareText()})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) { submittedDay = day; lastSubmitTs = Date.now(); toast('✅ 결과를 #워들에 전송했어'); return true; }
+    if (d.code === 'bad_token' || d.code === 'need_scope') {   // 만료/권한 갱신 필요 → 재로그인 유도
+      TOK = null; localStorage.removeItem('mw-tok'); setMeState();
+      return manual ? fallbackPaste('연동이 만료됐어 — 복사했으니 #워들에 붙여넣어줘') : false;
+    }
+    if (d.code === 'not_member') { if (manual) toast('MARS II 멤버만 자동전송 돼 — 복사해서 붙여넣어줘'); return false; }
+    if (d.code === 'duplicate') { submittedDay = day; if (manual) toast('오늘 결과는 이미 전송됐어'); return true; }
+    if (d.code === 'wrong_puzzle') { if (manual) toast('오늘 회차 결과가 아니야 — 사이트에서 새로고침 해줘'); return false; }
+    return manual ? fallbackPaste('전송 실패 — 복사했으니 #워들에 붙여넣어줘') : false;
+  } catch (e) {
+    return manual ? fallbackPaste('전송 실패(네트워크) — 복사했으니 #워들에 붙여넣어줘') : false;
+  }
 }
 
 /* ---------- 친구들 결과 패널 (공식 앱의 그 결과 화면 대체) ---------- */
@@ -439,7 +472,7 @@ function renderFriends() {
   if (!days.length) {
     $('fr-label').textContent = '기록 없음';
     list.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:13px;padding:16px 0">아직 아무도 결과를 안 올렸어 — 네가 처음 해봐!</div>';
-    note.textContent = '게임이 끝나면 자동으로 올라와 (미연동이면 결과 복사 → #워들에 붙여넣기). 집계는 5분마다 갱신.';
+    note.textContent = '게임이 끝나면 📮 #워들에 전송 한 번이면 끝 (🔗 로그인 필요 · 5분마다 갱신).';
     return;
   }
   frIdx = Math.max(0, Math.min(frIdx, days.length - 1));

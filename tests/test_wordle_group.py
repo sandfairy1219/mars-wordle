@@ -40,6 +40,13 @@ g = wg.extract_grid("오늘의 워들 #1944 3/6\n<@1>\n🟩🟨⬛⬛🟩\n🟩�
 assert g == "🟩🟨⬛⬛🟩\n🟩🟩⬛⬛🟩", g
 print("OK 귀속·그리드 추출")
 
+# --- 1-2) 붙여넣기 경로: 멘션·ID 없이 점수+그리드만 있어도 파싱(귀속은 작성자 계정) ---
+plain = share_like = "오늘의 워들 #1944 2026-10-14 5/6\n\n🟩⬛⬛🟩🟩\n🟩🟩🟩🟩🟩"
+assert wg.parse_result(plain) == (1944, "5"), wg.parse_result(plain)
+assert wg.ID_RE.search(plain) is None, "ID 없어야 정상"
+print("OK 붙여넣기 경로 파싱")
+
+
 # --- 2) 집계/요약/연속 ---
 wg.DB = tempfile.mkdtemp() + "/t.db"
 conn = wg.db()
