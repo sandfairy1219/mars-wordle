@@ -38,6 +38,11 @@ a.btn{background:var(--key);color:#fff;text-decoration:none;display:inline-block
 .fr-row{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border)}
 .fr-score{font-weight:700;font-size:13px;min-width:46px}
 .fr-grid{font-size:15px;line-height:1.2;letter-spacing:1px}
+.fr-line{display:flex;gap:3px;margin-bottom:3px}
+.fr-cell{width:14px;height:14px;border-radius:3px;display:block;background:var(--absent)}
+.fr-cell.correct{background:var(--correct)}
+.fr-cell.present{background:var(--present)}
+.fr-cell.absent{background:var(--absent)}
 .fr-name{font-size:11px;color:var(--sub);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fr-best{color:var(--correct)}
 #fr-close{display:block;margin:14px auto 0;padding:9px 18px;border:none;border-radius:8px;background:var(--key);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
@@ -447,8 +452,10 @@ function renderFriends() {
   const best = Math.min(...d.players.map(p => rank(p.score)));
   $('fr-label').textContent = `#${d.n}${d.date ? ' · ' + d.date : ''} · ${d.players.length}명`;
   list.innerHTML = d.players.map(p => {
-    const grid = (p.grid || '').split('\n').filter(Boolean)
-      .map(l => `<div>${esc(l)}</div>`).join('') || '<span style="color:var(--sub)">그리드 없음</span>';
+    const CELL = {'🟩': 'correct', '🟨': 'present', '⬛': 'absent', '⬜': 'absent'};
+    const grid = (p.grid || '').split('\n').filter(Boolean).map(line =>
+      '<div class="fr-line">' + [...line].map(ch => `<i class="fr-cell ${CELL[ch] || 'absent'}"></i>`).join('') + '</div>'
+    ).join('') || '<span style="color:var(--sub);font-size:12px">그리드 없음</span>';
     const initial = esc((p.name || '?').trim().slice(0, 1).toUpperCase());
     return `<div class="fr-row"><div><div class="fr-av">${initial}</div>`
       + `<div class="fr-score">${rank(p.score) === best ? '<span class="fr-best">👑</span> ' : ''}${esc(p.score)}/6</div>`

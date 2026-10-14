@@ -128,11 +128,12 @@ def run(pw, width, height, shot=None):
     pg.click("#friends-btn")
     pg.wait_for_timeout(900)
     assert not pg.evaluate("document.getElementById('overlay').classList.contains('show')"), "모달이 안 닫힘"
-    fr = pg.evaluate("({open: document.getElementById('fr-overlay').classList.contains('show'), label: document.getElementById('fr-label').textContent, rows: document.querySelectorAll('.fr-row').length, crowns: document.querySelectorAll('.fr-best').length, grids: document.querySelectorAll('.fr-grid div').length, note: document.getElementById('fr-note').textContent})")
+    fr = pg.evaluate("({open: document.getElementById('fr-overlay').classList.contains('show'), label: document.getElementById('fr-label').textContent, rows: document.querySelectorAll('.fr-row').length, crowns: document.querySelectorAll('.fr-best').length, grids: document.querySelectorAll('.fr-cell').length, wrong: document.querySelectorAll('.fr-cell.correct').length, note: document.getElementById('fr-note').textContent})")
     print("FRIENDS:", fr)
     assert fr["open"] and fr["rows"] == 3, "친구들 패널 미표시: %s" % fr
     assert fr["crowns"] == 2, "👑 표시 오류(3/6 두 명이 최고): %s" % fr["crowns"]
-    assert fr["grids"] >= 7, "그리드 렌더 누락: %s" % fr["grids"]
+    assert fr["grids"] >= 35, "그리드 셀 렌더 누락: %s" % fr["grids"]
+    assert fr["wrong"] >= 7, "초록 타일 누락(성공줄): %s" % fr["wrong"]
     assert "#1944" in fr["label"], fr["label"]
     pg.click("#fr-prev"); pg.wait_for_timeout(400)
     label2 = pg.evaluate("document.getElementById('fr-label').textContent")
