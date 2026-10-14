@@ -357,6 +357,7 @@ async function startDaily() {
     guesses = prev.guesses; status = prev.status;
     if (status !== 'playing') setTimeout(() => showModal(status === 'won'), 400);
   }
+  if (ME && mode === 'daily' && status !== 'playing' && submittedDay !== day) submitResult(false);   // 로그인 후 이미 끝난 게임 자동 전송
 }
 
 /* ---------- 디스코드 연동 (공식 Wordle 앱 대체 — 결과 자동 전송 + 그룹 집계) ---------- */
@@ -484,8 +485,7 @@ $('practice-btn').onclick = startPractice;
 $('theme-btn').onclick = () => document.body.classList.toggle('light');
 setInterval(() => { if (mode === 'daily' && dstr() !== day) { toast('새 문제!'); startDaily(); } }, 30000);   // 자정 넘김 자동 갱신
 buildBoard(); buildKeyboard();
-handleOAuth();                     // Discord 로그인 콜백(#access_token=…)이면 신원 확보
-startDaily();
+(async () => { await handleOAuth(); await startDaily(); })();   // 로그인 콜백 먼저 → 복원된 게임이면 자동 전송까지
 </script>
 </body>
 </html>
