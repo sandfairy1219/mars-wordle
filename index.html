@@ -410,7 +410,7 @@ async function submitResult(manual) {
   if (mode !== 'daily') { toast('연습 모드는 전송 안 해'); return false; }
   if (!ME) { toast(manual ? '위에서 🔗 Discord 로그인을 눌러줘 (또는 결과 복사 → #워들에 붙여넣기)' : '미연동 — 결과를 복사해 #워들에 붙여넣어도 집계돼'); return false; }
   const content = `오늘의 워들 #${num} ${day} ${status === 'won' ? guesses.length : 'X'}/6\n<@${ME.id}>\n${gridText()}`;
-  const body = JSON.stringify({content, username: '오늘의 워들', allowed_mentions: {parse: []}});
+  const body = JSON.stringify({content, username: '오늘의 워들', allowed_mentions: {parse: [], users: [ME.id]}});
   try {
     const r = await fetch(WEBHOOK, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
     if (r.ok) { submittedDay = day; toast('결과를 #워들에 전송했어'); return true; }

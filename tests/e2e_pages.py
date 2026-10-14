@@ -152,7 +152,7 @@ def run(pw, width, height, shot=None):
     assert "<@777000000000000042>" in body, "멘션 형식으로 자동 전송 안 됨: %s" % body
     assert "👤" not in body and "777000000000000042 (" not in body, "id/이름 노출됨: %s" % body
     assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
-    assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단(핑 방지) 누락"
+    assert posted.get("allowed_mentions") == {"parse": [], "users": ["777000000000000042"]}, "멘션 설정(본인만 허용·핑 없음) 누락: %s" % posted.get("allowed_mentions")
     posted.clear()
     pg.evaluate("submittedDay = null")            # 수동 재전송 경로도 확인
     pg.click("#send-btn"); pg.wait_for_timeout(1500)
