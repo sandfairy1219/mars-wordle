@@ -34,6 +34,7 @@ def run(pw, width, height, shot=None):
     except Exception as e:
         print("default launch failed (%s) -> executable_path" % str(e)[:80])
         b = pw.chromium.launch(headless=True, executable_path=CHROME)
+    browser = b   # 브라우저 핸들 보존 (아래에서 b가 dict로 재사용됨)
     ctx = b.new_context(viewport={"width": width, "height": height}, permissions=["clipboard-read", "clipboard-write"])
     pg = ctx.new_page()
     errs, cons = [], []
@@ -71,13 +72,35 @@ def run(pw, width, height, shot=None):
                              headers={"Access-Control-Allow-Origin": "*"}, body='{"ok":true,"n":1944}')
 
     pg.route("**/submit", _worker)
-    pg.goto(URL, wait_until="load", timeout=45000)
-    pg.wait_for_timeout(4000)
-
-    state = pg.evaluate("({answer, num, source, status, words: WORDSET.size, pz: PUZZLES ? Object.keys(PUZZLES).length : null, meta: document.getElementById('meta').textContent})")
-    print("STATE:", state)
-    assert state["answer"] and len(state["answer"]) == 5, "정답 로드 실패"
-    assert state["num"], "회차 로드 실패"
+    # 로딩은 네트워크(NYT API + puzzles.json) 의존 → 일시 실패는 재시도로 흡수
+    STATE_JS = ("({answer, num, source, status, words: WORDSET.size, "
+                "pz: (typeof PUZZLES !== 'undefined' && PUZZLES) ? Object.keys(PUZZLES).length : null, "
+                "meta: document.getElementById('meta').textContent})")
+    state = {}
+    for attempt in range(3):
+        try:
+            pg.goto(URL, wait_until="load", timeout=45000)
+        except Exception as e:                       # 페이지 로드 타임아웃(CDN 순간 장애)
+            print("LOAD retry %d: %s" % (attempt + 1, str(e)[:70]))
+            pg.wait_for_timeout(3000)
+            continue
+        for _ in range(20):                          # 문제·사전 로딩 최대 20초 대기
+            pg.wait_for_timeout(1000)
+            try:
+                st = pg.evaluate(STATE_JS)
+            except Exception:
+                continue
+            if st.get("num") and st.get("words", 0) > 10000 and len(st.get("answer") or "") == 5:
+                state = st
+                break
+            state = st
+        print("STATE(try %d):" % (attempt + 1), state)
+        if state.get("num") and state.get("words", 0) > 10000 and len(state.get("answer") or "") == 5:
+            break
+        print("  → 로딩 미완(네트워크 추정) — 재시도")
+        pg.wait_for_timeout(2000)
+    assert state.get("answer") and len(state["answer"]) == 5, "정답 로드 실패(재시도 후): %s" % state
+    assert state.get("num"), "회차 로드 실패(재시도 후): %s" % state
     assert not state["source"].startswith("오프라인"), "NYT 소스 아님: " + state["source"]
     assert state["words"] > 10000, "단어사전 로드 실패: %s" % state["words"]
     today_word = state["answer"]
@@ -196,7 +219,7 @@ def run(pw, width, height, shot=None):
     assert not errs, "JS 에러: %s" % errs[:3]
     bad = [c for c in cons if c.startswith("error")]
     assert not bad, "콘솔 에러: %s" % bad[:3]
-    ctx.close(); b.close()
+    ctx.close(); browser.close()
     return today_word, state["num"]
 
 
