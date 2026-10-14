@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#121213">
+<title>오늘의 워들</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%23538d4e'/><text x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>W</text></svg>">
+<style>
+:root{--bg:#121213;--tile:#121213;--border:#3a3a3c;--filled:#565758;--text:#fff;--sub:#9a9a9a;
+--key:#818384;--correct:#538d4e;--present:#b59f3b;--absent:#3a3a3c;--modal:#1a1a1b;
+--tile-sz:clamp(46px,calc((100vw - 52px)/5),62px);--key-h:clamp(42px,7.5vh,56px);}
+body.light{--bg:#fff;--tile:#fff;--border:#d3d6da;--filled:#878a8c;--text:#1a1a1b;--sub:#666;
+--key:#d3d6da;--correct:#6aaa64;--present:#c9b458;--absent:#787c7e;--modal:#fff;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;
+display:flex;flex-direction:column;align-items:center;min-height:100dvh;overflow-x:hidden}
+header{width:100%;max-width:520px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+padding:10px 14px;border-bottom:1px solid var(--border)}
+h1{font-size:20px;letter-spacing:2px;white-space:nowrap}
+#meta{font-size:11px;color:var(--sub);text-align:center;line-height:1.35}
+header button{background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;
+padding:6px 9px;cursor:pointer;font-size:12px;white-space:nowrap}
+#board{display:grid;grid-template-rows:repeat(6,1fr);gap:5px;padding:0;margin:14px 0 6px}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.tile{width:var(--tile-sz);height:var(--tile-sz);border:2px solid var(--border);display:flex;align-items:center;
+justify-content:center;font-size:calc(var(--tile-sz)*.5);font-weight:700;text-transform:uppercase;user-select:none;color:var(--text)}
+.tile.filled{border-color:var(--filled);animation:pop .1s}
+.tile.correct{background:var(--correct);border-color:var(--correct);color:#fff}
+.tile.present{background:var(--present);border-color:var(--present);color:#fff}
+.tile.absent{background:var(--absent);border-color:var(--absent);color:#fff}
+.tile.flip{animation:flip .5s ease}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+@keyframes pop{50%{transform:scale(1.08)}}
+.row.shake{animation:shake .6s}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
+#keyboard{margin-top:auto;padding:10px 0 18px;width:100%;max-width:520px}
+.kb-row{display:flex;gap:5px;justify-content:center;margin-bottom:6px;padding:0 5px}
+.key{flex:1;max-width:44px;height:var(--key-h);background:var(--key);color:#fff;border:none;border-radius:5px;
+font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;padding:0}
+.key.wide{max-width:66px;flex:1.6;font-size:12px}
+.key.correct{background:var(--correct)}.key.present{background:var(--present)}.key.absent{background:var(--absent)}
+body.light .key{color:#1a1a1b}
+body.light .key.correct,body.light .key.present,body.light .key.absent{color:#fff}
+#toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
+padding:10px 16px;border-radius:6px;font-weight:700;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:88vw;text-align:center}
+#toast.show{opacity:1}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+#overlay.show{display:flex}
+#modal{background:var(--modal);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:340px;width:100%;
+text-align:center;animation:slidein .3s;max-height:90dvh;overflow:auto}
+@keyframes slidein{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+#modal h2{font-size:19px;margin-bottom:10px}
+#reveal{font-weight:700;letter-spacing:4px;font-size:20px;margin:8px 0;color:var(--correct)}
+#grid{font-size:19px;letter-spacing:3px;margin:12px 0;white-space:pre;line-height:1.25}
+#stats{display:flex;justify-content:space-around;margin:14px 0;gap:6px}
+#stats .num{font-size:21px;font-weight:700}
+#stats .lbl{font-size:10px;color:var(--sub)}
+#countdown{font-size:12px;color:var(--sub);margin-top:4px}
+#modal button{margin:10px 4px 0;padding:11px 16px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+#share-btn{background:var(--correct);color:#fff}
+#callout{background:var(--key);color:#fff;text-decoration:none;display:inline-block}
+footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;line-height:1.5;max-width:520px}
+</style>
+</head>
+<body>
+<header>
+  <button id="theme-btn" title="테마 전환">☀/🌙</button>
+  <div>
+    <h1>오늘의 워들</h1>
+    <div id="meta">불러오는 중…</div>
+  </div>
+  <button id="practice-btn" title="연습 모드">🔁 연습</button>
+</header>
+<div id="board"></div>
+<div id="keyboard"></div>
+<div id="toast"></div>
+<div id="overlay"><div id="modal">
+  <h2 id="modal-title"></h2>
+  <div id="reveal"></div>
+  <div id="grid"></div>
+  <div id="stats">
+    <div><div class="num" id="st-played">0</div><div class="lbl">플레이</div></div>
+    <div><div class="num" id="st-win">0%</div><div class="lbl">승률</div></div>
+    <div><div class="num" id="st-streak">0</div><div class="lbl">연속</div></div>
+    <div><div class="num" id="st-max">0</div><div class="lbl">최고연속</div></div>
+  </div>
+  <div id="countdown"></div>
+  <button id="share-btn">📋 결과 복사</button>
+  <button id="again-btn">연습 한 판</button>
+</div></div>
+<footer>매일 자정(한국시간) 새 문제 · 정답은 NYT Wordle API 기준이라 <b>디스코드 공식 Wordle과 같은 날 같은 단어</b>야.</footer>
+
+<script>
+'use strict';
+/* ---------- 단어 사전(추측 검증 + 비상용) ---------- */
+const WORDS = `ABOUT ABOVE ABUSE ACTOR ACUTE ADMIT ADOPT ADORE ADULT AFTER AGAIN AGENT AGREE AHEAD ALARM ALBUM ALERT ALIKE ALIVE ALLOW ALONE ALONG ALOUD ALTER ANGEL ANGER ANGLE ANGRY APART APPLE APPLY ARENA ARGUE ARISE ARMOR AROMA ARRAY ASIDE ASSET AUDIO AVOID AWAKE AWARD AWARE BADGE BADLY BAKER BASIC BEACH BEGAN BEGIN BEING BELOW BENCH BIRTH BLACK BLAME BLANK BLAST BLEND BLESS BLIND BLOCK BLOOD BOARD BONUS BOOST BOUND BRAIN BRAND BRAVE BREAD BREAK BRICK BRIDE BRIEF BRING BROAD BROKE BROWN BRUSH BUILD BUNCH BUYER CABIN CABLE CANDY CARGO CARRY CATCH CAUSE CHAIN CHAIR CHAOS CHARM CHART CHASE CHEAP CHECK CHESS CHEST CHIEF CHILD CHINA CHOIR CHOSE CIVIL CLAIM CLASS CLEAN CLEAR CLERK CLICK CLIFF CLIMB CLOCK CLOSE CLOTH CLOUD COACH COAST COLOR COMET CORAL COUCH COUGH COULD COUNT COURT COVER CRACK CRAFT CRANE CRASH CREAM CRIME CRISP CROSS CROWD CROWN CRUDE CRUSH CURVE CYCLE DAILY DAIRY DANCE DEALT DEATH DEBUT DECOR DELAY DELTA DENSE DEPTH DIARY DIRTY DITCH DOUBT DOZEN DRAFT DRAIN DRAMA DRANK DREAM DRESS DRIED DRIFT DRILL DRINK DRIVE DROVE DYING EAGER EAGLE EARLY EARTH EIGHT ELBOW ELDER ELECT ELITE EMPTY ENEMY ENJOY ENTER ENTRY EQUAL ERROR ESSAY EVENT EVERY EXACT EXIST EXTRA FAINT FAITH FALSE FANCY FATAL FAULT FAVOR FEAST FENCE FEVER FIBER FIELD FIFTY FIGHT FINAL FIRST FLAME FLASH FLEET FLESH FLOAT FLOOD FLOOR FLOUR FLUID FOCUS FORCE FORTH FORTY FORUM FOUND FRAME FRESH FRONT FROST FRUIT FULLY FUNNY GIANT GIVEN GLASS GLOBE GLORY GLOVE GRACE GRADE GRAIN GRAND GRANT GRAPE GRAPH GRASP GRASS GRAVE GREAT GREEN GREET GRILL GROUP GROVE GROWN GUARD GUESS GUEST GUIDE HABIT HAPPY HARSH HEART HEAVY HEDGE HELLO HENCE HOBBY HONEY HONOR HORSE HOTEL HOUSE HUMAN HUMOR HURRY IDEAL IMAGE IMPLY INDEX INNER INPUT ISSUE IVORY JELLY JEWEL JOINT JUDGE JUICE KNIFE KNOCK KNOWN LABEL LABOR LARGE LASER LATER LAUGH LAYER LEARN LEASE LEAST LEAVE LEGAL LEMON LEVEL LIGHT LIMIT LIVER LOCAL LODGE LOGIC LOOSE LOWER LOYAL LUCKY LUNCH LYING MAGIC MAJOR MAKER MANGO MARCH MATCH MAYBE MAYOR MEANT MEDAL MEDIA MERCY MERGE MERIT METAL METER MIGHT MINOR MINUS MIXED MODEL MONEY MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVIE MUSIC NAIVE NASTY NAVAL NERVE NEVER NEWLY NIGHT NOBLE NOISE NORTH NOTED NOVEL NURSE OCCUR OCEAN OFFER OFTEN OLIVE ONION OPERA ORBIT ORDER ORGAN OTHER OUGHT OUNCE OUTER OWNER PAINT PANEL PAPER PARTY PASTE PATCH PAUSE PEACE PEACH PEARL PEDAL PENNY PHASE PHONE PHOTO PIANO PIECE PILOT PITCH PIZZA PLACE PLAIN PLANE PLANT PLATE PLAZA POINT POLAR PORCH POUND POWER PRESS PRICE PRIDE PRIME PRINT PRIOR PRIZE PROOF PROUD PROVE PULSE PUNCH PUPIL PUPPY QUEEN QUERY QUEST QUEUE QUICK QUIET QUITE QUOTE RADAR RADIO RAISE RALLY RANGE RAPID RATIO REACH REACT READY REALM REBEL REFER REIGN RELAX REPLY RIDER RIDGE RIGHT RIGID RISKY RIVAL RIVER ROAST ROBIN ROBOT ROCKY ROGUE ROUGH ROUND ROUTE ROYAL RUGBY RULER RUMOR RURAL SAINT SALAD SALON SAUCE SCALE SCARE SCENE SCENT SCOPE SCORE SCOUT SCRAP SCREW SENSE SERVE SETUP SEVEN SHADE SHAKE SHALL SHAME SHAPE SHARE SHARK SHARP SHEEP SHEET SHELF SHELL SHIFT SHINE SHIRT SHOCK SHOOT SHORE SHORT SHOUT SIGHT SILLY SINCE SIXTH SIXTY SKILL SKIRT SLEEP SLICE SLIDE SLOPE SMALL SMART SMELL SMILE SMOKE SNAKE SOLID SOLVE SORRY SOUND SOUTH SPACE SPARE SPARK SPEAK SPEED SPELL SPEND SPICE SPINE SPITE SPLIT SPOKE SPORT SPRAY STAFF STAGE STAIR STAKE STAND STARE START STATE STEAK STEAL STEAM STEEL STEEP STEER STICK STIFF STILL STOCK STONE STOOD STORE STORM STORY STOVE STRAP STRAW STRIP STUDY STUFF STYLE SUGAR SUITE SUNNY SUPER SWEAR SWEET SWIFT SWING SWORD TABLE TASTE TEACH TEETH TEMPO TENSE TENTH THANK THEFT THEME THERE THESE THICK THING THINK THIRD THOSE THREE THREW THROW THUMB TIGER TIGHT TIMER TITLE TOAST TODAY TOKEN TOPIC TORCH TOTAL TOUCH TOUGH TOWEL TOWER TOXIC TRACE TRACK TRADE TRAIL TRAIN TRAIT TRASH TREAT TREND TRIAL TRIBE TRICK TRIED TRUCK TRULY TRUNK TRUST TRUTH TWICE TWIST UNCLE UNDER UNDUE UNION UNITE UNITY UNTIL UPPER UPSET URBAN USAGE USUAL VALID VALUE VAPOR VAULT VENUE VERSE VIDEO VIGOR VINYL VIRUS VISIT VITAL VIVID VOCAL VOICE VOTER WAGON WASTE WATCH WATER WEARY WEAVE WEDGE WEIGH WEIRD WHALE WHEAT WHEEL WHERE WHICH WHILE WHITE WHOLE WHOSE WIDOW WIDTH WITCH WOMAN WOMEN WORLD WORRY WORSE WORST WORTH WOULD WOUND WRIST WRITE WRONG WROTE YIELD YOUNG YOUTH`;
+let WORDSET = new Set(WORDS.split(/\s+/));       // 내장 폴백 → words.json(1.4만 단어)로 확장
+async function loadWords() {
+  try {
+    const r = await fetch('words.json');
+    if (r.ok) { const a = await r.json(); if (Array.isArray(a) && a.length > 1000) WORDSET = new Set(a); }
+  } catch (e) {}
+}
+
+/* ---------- 날짜 (한국시간 = 기기 로컬 자정 기준) ---------- */
+const pad = n => String(n).padStart(2, '0');
+const dstr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const KO_DAY = ['일','월','화','수','목','금','토'];
+let day = dstr();                       // 오늘(KST) 날짜
+let num = null;                         // 워들 회차
+let source = '';
+
+/* ---------- 정답 소스 ---------- */
+const nytUrl = d => `https://www.nytimes.com/svc/wordle/v2/${d}.json`;
+const MIRRORS = [u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+                 u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)];
+let PUZZLES = null;
+async function loadPuzzles() {
+  try {
+    const r = await fetch('puzzles.json?d=' + day, {cache: 'no-store'});
+    if (r.ok) PUZZLES = await r.json();
+  } catch (e) { PUZZLES = null; }
+}
+async function fetchNyt(d) {
+  for (const wrap of MIRRORS) {
+    try {
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 7000);
+      const res = await fetch(wrap(nytUrl(d)), {signal: ctrl.signal, headers: {Accept: 'application/json'}});
+      clearTimeout(t);
+      if (!res.ok) continue;
+      const j = await res.json();
+      if (j && j.solution) return {solution: j.solution.toUpperCase(), number: (j.days_since_launch ?? 0) + 1};
+    } catch (e) {}
+  }
+  return null;
+}
+function fallbackWord(d) {                       // API·json 둘 다 실패해도 항상 플레이 가능
+  let h = 0; for (const ch of d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return WORDS.split(/\s+/)[h % WORDSET.size];
+}
+async function resolveWord(d) {
+  if (PUZZLES === null) await loadPuzzles();
+  const p = PUZZLES && PUZZLES[d];
+  if (p && p.solution) { source = 'NYT Wordle API'; return {solution: p.solution.toUpperCase(), number: p.n}; }
+  const live = await fetchNyt(d);
+  if (live) { source = 'NYT Wordle API(실시간)'; return live; }
+  source = '오프라인 대체 단어(NYT 아님)';
+  return {solution: fallbackWord(d), number: null};
+}
+
+/* ---------- NYT 채점 (중복글자: 초록 먼저 소비 → 남은 풀에서 노랑) ---------- */
+function score(guess, ans) {
+  const out = Array(5).fill('absent'), pool = {};
+  for (let i = 0; i < 5; i++) if (guess[i] === ans[i]) out[i] = 'correct';
+  for (let i = 0; i < 5; i++) if (out[i] !== 'correct') pool[ans[i]] = (pool[ans[i]] || 0) + 1;
+  for (let i = 0; i < 5; i++) {
+    if (out[i] === 'correct') continue;
+    if (pool[guess[i]] > 0) { out[i] = 'present'; pool[guess[i]]--; }
+  }
+  return out;
+}
+
+/* ---------- 상태 ---------- */
+const FLIP = 220, EMOJI = {correct:'🟩', present:'🟨', absent:'⬛'}, PRIO = {correct:3, present:2, absent:1};
+let answer = '', mode = 'daily', guesses = [], cur = '', status = 'playing', animating = false, overlayOpen = false;
+const keyState = {};
+const stats = JSON.parse(localStorage.getItem('mw-stats') || '{"played":0,"wins":0,"streak":0,"max":0}');
+const saveStats = () => localStorage.setItem('mw-stats', JSON.stringify(stats));
+const readDaily = () => { try { return JSON.parse(localStorage.getItem('mw-daily')); } catch { return null; } };
+const saveDaily = counted => localStorage.setItem('mw-daily', JSON.stringify({day, answer, guesses, status, counted: !!counted}));
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const boardEl = $('board'), kbEl = $('keyboard'), toastEl = $('toast');
+let toastT;
+function toast(m) { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 1700); }
+function buildBoard() {
+  boardEl.innerHTML = '';
+  for (let r = 0; r < 6; r++) {
+    const row = document.createElement('div'); row.className = 'row';
+    for (let c = 0; c < 5; c++) { const t = document.createElement('div'); t.className = 'tile'; row.appendChild(t); }
+    boardEl.appendChild(row);
+  }
+}
+function buildKeyboard() {
+  kbEl.innerHTML = '';
+  ['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'].forEach((letters, i) => {
+    const div = document.createElement('div'); div.className = 'kb-row';
+    if (i === 2) { const e = document.createElement('button'); e.className = 'key wide'; e.textContent = '입력'; e.onclick = submitGuess; div.appendChild(e); }
+    for (const ch of letters) { const b = document.createElement('button'); b.className = 'key'; b.id = 'k-' + ch; b.textContent = ch; b.onclick = () => addLetter(ch); div.appendChild(b); }
+    if (i === 2) { const b = document.createElement('button'); b.className = 'key wide'; b.textContent = '⌫'; b.onclick = delLetter; div.appendChild(b); }
+    kbEl.appendChild(div);
+  });
+}
+const tileAt = (r, c) => boardEl.children[r].children[c];
+function setMeta() {
+  const d = new Date(day + 'T12:00:00');
+  const head = (num ? '#' + num + ' · ' : '') + day + ' (' + KO_DAY[d.getDay()] + ')';
+  $('meta').textContent = head + (source ? ' · ' + source : '');
+}
+
+/* ---------- 입력 ---------- */
+function addLetter(ch) {
+  if (status !== 'playing' || animating || overlayOpen || cur.length >= 5) return;
+  cur += ch;
+  const t = tileAt(guesses.length, cur.length - 1);
+  t.textContent = ch; t.classList.add('filled');
+}
+function delLetter() {
+  if (status !== 'playing' || animating || overlayOpen || !cur.length) return;
+  const t = tileAt(guesses.length, cur.length - 1);
+  t.textContent = ''; t.classList.remove('filled'); cur = cur.slice(0, -1);
+}
+function shakeRow() { const r = boardEl.children[guesses.length]; r.classList.add('shake'); setTimeout(() => r.classList.remove('shake'), 650); }
+function submitGuess() {
+  if (status !== 'playing' || animating || overlayOpen) return;
+  if (cur.length < 5) { toast('글자 5개를 채워줘'); shakeRow(); return; }
+  if (!WORDSET.has(cur)) { toast('단어 목록에 없는 말이야'); shakeRow(); return; }
+  const results = score(cur, answer), rowIdx = guesses.length;
+  guesses.push({guess: cur, results});
+  animating = true;
+  for (let i = 0; i < 5; i++) {
+    const t = tileAt(rowIdx, i);
+    setTimeout(() => t.classList.add('flip'), i * FLIP);
+    setTimeout(() => {
+      t.classList.add(results[i]);
+      const k = cur[i];
+      if (!keyState[k] || PRIO[results[i]] > PRIO[keyState[k]]) {
+        keyState[k] = results[i];
+        const el = $('k-' + k); el.classList.remove('correct','present','absent'); el.classList.add(results[i]);
+      }
+    }, i * FLIP + FLIP);
+  }
+  cur = '';
+  setTimeout(() => {
+    animating = false;
+    const won = results.every(r => r === 'correct');
+    if (won) endGame(true);
+    else if (guesses.length === 6) endGame(false);
+    else if (mode === 'daily') saveDaily(false);
+  }, 4 * FLIP + 600);
+}
+
+/* ---------- 종료/모달/공유 ---------- */
+const gridText = () => guesses.map(g => g.results.map(r => EMOJI[r]).join('')).join('\n');
+const shareText = () => mode === 'daily'
+  ? `오늘의 워들 ${num ? '#' + num + ' ' : ''}${day} ${status === 'won' ? guesses.length : 'X'}/6\n\n${gridText()}`
+  : `워들 연습 ${status === 'won' ? guesses.length : 'X'}/6\n\n${gridText()}`;
+async function copyShare() {
+  const t = shareText();
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
+  toast('복사됨 — 디스코드에 붙여넣어');
+}
+function renderStats() {
+  $('st-played').textContent = stats.played;
+  $('st-win').textContent = (stats.played ? Math.round(100 * stats.wins / stats.played) : 0) + '%';
+  $('st-streak').textContent = stats.streak;
+  $('st-max').textContent = stats.max;
+}
+function endGame(won) {
+  status = won ? 'won' : 'lost';
+  if (mode === 'daily') {
+    const prev = readDaily();
+    if (!prev || !prev.counted) {
+      stats.played++;
+      if (won) { stats.wins++; stats.streak++; stats.max = Math.max(stats.max, stats.streak); } else stats.streak = 0;
+      saveStats();
+    }
+    saveDaily(true);
+  }
+  setTimeout(() => showModal(won), 900);
+}
+function tickCountdown() {
+  const now = new Date(), nxt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+  const s = Math.max(0, Math.floor((nxt - now) / 1000));
+  $('countdown').textContent = `다음 문제까지 ${pad(Math.floor(s/3600))}:${pad(Math.floor(s%3600/60))}:${pad(s%60)}`;
+}
+let cdTimer;
+function showModal(won) {
+  overlayOpen = true;
+  $('modal-title').textContent = won ? ['천재!','훌륭해','멋져','좋아','잘했어','겨우 살았다'][guesses.length - 1] : '아쉽다 — 내일 다시';
+  $('reveal').textContent = won ? '' : '정답: ' + answer;
+  $('grid').textContent = gridText();
+  renderStats(); tickCountdown();
+  clearInterval(cdTimer); cdTimer = setInterval(tickCountdown, 1000);
+  $('overlay').classList.add('show');
+}
+function hideModal() { overlayOpen = false; clearInterval(cdTimer); $('overlay').classList.remove('show'); }
+
+/* ---------- 게임 시작 ---------- */
+function resetGame(ans, m) {
+  answer = ans; mode = m; guesses = []; cur = ''; status = 'playing'; animating = false;
+  for (const k in keyState) delete keyState[k];
+  buildBoard(); buildKeyboard(); hideModal();
+}
+function startPractice() { resetGame(WORDS.split(/\s+/)[Math.floor(Math.random() * WORDSET.size)], 'practice'); toast('연습 모드 — 아무 단어나'); }
+async function startDaily() {
+  day = dstr();
+  resetGame('.....', 'daily'); setMeta();
+  toast('오늘 단어 불러오는 중…');
+  await loadWords();
+  const w = await resolveWord(day);
+  answer = w.solution; num = w.number; setMeta();
+  if (source.startsWith('오프라인')) toast('인터넷 없음 — 대체 단어로 진행');
+  const prev = readDaily();
+  if (prev && prev.day === day && prev.answer === answer) {
+    prev.guesses.forEach((g, r) => g.results.forEach((res, c) => {
+      const t = tileAt(r, c); t.textContent = g.guess[c]; t.classList.add('filled', res);
+      if (!keyState[g.guess[c]] || PRIO[res] > PRIO[keyState[g.guess[c]]]) { keyState[g.guess[c]] = res; $('k-' + g.guess[c]).classList.add(res); }
+    }));
+    guesses = prev.guesses; status = prev.status;
+    if (status !== 'playing') setTimeout(() => showModal(status === 'won'), 400);
+  }
+}
+
+/* ---------- 배선 ---------- */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Enter') submitGuess();
+  else if (e.key === 'Backspace') delLetter();
+  else if (/^[a-zA-Z]$/.test(e.key)) addLetter(e.key.toUpperCase());
+});
+$('share-btn').onclick = copyShare;
+$('again-btn').onclick = startPractice;
+$('practice-btn').onclick = startPractice;
+$('theme-btn').onclick = () => document.body.classList.toggle('light');
+setInterval(() => { if (mode === 'daily' && dstr() !== day) { toast('새 문제!'); startDaily(); } }, 30000);   // 자정 넘김 자동 갱신
+buildBoard(); buildKeyboard(); startDaily();
+</script>
+</body>
+</html>
