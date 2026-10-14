@@ -43,6 +43,15 @@ def run(pw, width, height, shot=None):
     pg.route("**/players.json*", lambda route: route.fulfill(
         status=200, content_type="application/json",
         body=json.dumps([{"id": "999000000000000001", "name": "연동테스트"}], ensure_ascii=False)))
+    FR_DAYS = {"days": [
+        {"n": 1944, "date": "2026-10-14", "players": [
+            {"name": "친구A", "score": "3", "grid": "🟩🟨⬛⬛🟩\n🟩🟩🟨⬛⬛\n🟩🟩🟩🟩🟩"},
+            {"name": "친구B", "score": "3", "grid": "🟨⬛⬛🟩⬛\n🟩🟩🟩🟨⬛\n🟩🟩🟩🟩🟩"},
+            {"name": "친구C", "score": "X", "grid": "⬛⬛🟨⬛⬛\n🟨⬛⬛⬛⬛"}]},
+        {"n": 1943, "date": "2026-10-13", "players": [{"name": "친구A", "score": "4", "grid": "🟩🟩🟩🟩🟩"}]},
+    ]}
+    pg.route("**/results.json*", lambda route: route.fulfill(
+        status=200, content_type="application/json", body=json.dumps(FR_DAYS, ensure_ascii=False)))
     pg.route("**/api/webhooks/**", lambda route: (
         posted.update(json.loads(route.request.post_data or "{}")),
         route.fulfill(status=204, body="")))
@@ -110,6 +119,24 @@ def run(pw, width, height, shot=None):
     assert ("#%s" % state["num"]) in body and "2/6" in body, "전송 본문 형식 이상: %s" % body
     assert posted.get("allowed_mentions") == {"parse": []}, "멘션 차단 누락"
     print("OK 결과 자동 전송(웹훅·귀속·멘션차단)")
+
+    # 3-2) 친구들 결과 패널 (공식 앱 결과화면 대체)
+    pg.click("#fr-btn")
+    pg.wait_for_timeout(900)
+    fr = pg.evaluate("({open: document.getElementById('fr-overlay').classList.contains('show'), label: document.getElementById('fr-label').textContent, rows: document.querySelectorAll('.fr-row').length, crowns: document.querySelectorAll('.fr-best').length, grids: document.querySelectorAll('.fr-grid div').length, note: document.getElementById('fr-note').textContent})")
+    print("FRIENDS:", fr)
+    assert fr["open"] and fr["rows"] == 3, "친구들 패널 미표시: %s" % fr
+    assert fr["crowns"] == 2, "👑 표시 오류(3/6 두 명이 최고): %s" % fr["crowns"]
+    assert fr["grids"] >= 7, "그리드 렌더 누락: %s" % fr["grids"]
+    assert "#1944" in fr["label"], fr["label"]
+    pg.click("#fr-prev"); pg.wait_for_timeout(400)
+    label2 = pg.evaluate("document.getElementById('fr-label').textContent")
+    assert "#1943" in label2, "이전 날 이동 실패: %s" % label2
+    if shot:
+        pg.screenshot(path="/tmp/wordle_friends.png", full_page=True)
+    pg.click("#fr-close"); pg.wait_for_timeout(300)
+    assert not pg.evaluate("document.getElementById('fr-overlay').classList.contains('show')"), "패널 닫기 실패"
+    print("OK 친구들 결과 패널(순위·👑·그리드·날짜이동)")
 
     # 4) 레이아웃: 가로 스크롤 없음 + 타일 5개 한 줄
     lay = pg.evaluate("({iw: window.innerWidth, sw: document.documentElement.scrollWidth, tiles: document.querySelector('.row').childElementCount, tileW: Math.round(document.querySelector('.tile').getBoundingClientRect().width)})")

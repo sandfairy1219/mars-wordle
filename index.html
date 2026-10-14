@@ -27,6 +27,18 @@ padding:6px 9px;cursor:pointer;font-size:12px;white-space:nowrap}
 #me-state.on{color:var(--correct)}
 #me-bar button{background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer;white-space:nowrap}
 a.btn{background:var(--key);color:#fff;text-decoration:none;display:inline-block;margin:10px 4px 0;padding:11px 16px;border-radius:8px;font-weight:700;font-size:14px}
+#fr-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:25;padding:14px}
+#fr-overlay.show{display:flex}
+#fr{background:var(--modal);border:1px solid var(--border);border-radius:14px;width:100%;max-width:430px;max-height:88dvh;overflow:auto;padding:18px}
+#fr h2{font-size:17px;margin-bottom:4px;text-align:center}
+#fr-nav{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0 10px;font-size:12px;color:var(--sub)}
+#fr-nav button{background:none;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px}
+.fr-row{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border)}
+.fr-score{font-weight:700;font-size:13px;min-width:46px}
+.fr-grid{font-size:15px;line-height:1.2;letter-spacing:1px}
+.fr-name{font-size:11px;color:var(--sub);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-best{color:var(--correct)}
+#fr-close{display:block;margin:14px auto 0;padding:9px 18px;border:none;border-radius:8px;background:var(--key);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
 #board{display:grid;grid-template-rows:repeat(6,1fr);gap:5px;padding:0;margin:14px 0 6px}
 .row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .tile{width:var(--tile-sz);height:var(--tile-sz);border:2px solid var(--border);display:flex;align-items:center;
@@ -79,9 +91,10 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="practice-btn" title="연습 모드">🔁 연습</button>
 </header>
 <div id="me-bar">
-  <span>내 디스코드</span>
+  <span>디스코드</span>
   <select id="who"><option value="">— 선택 —</option></select>
   <span id="me-state">미연동</span>
+  <button id="fr-btn" title="친구들 결과 보기">👥 친구들</button>
 </div>
 <div id="board"></div>
 <div id="keyboard"></div>
@@ -101,6 +114,13 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="send-btn">📮 결과 전송</button>
   <a class="btn" id="chan-btn" href="https://discord.com/channels/1512107856390783077/1559893272166662178" target="_blank" rel="noopener">#워들 열기</a>
   <button id="again-btn">연습 한 판</button>
+</div></div>
+<div id="fr-overlay"><div id="fr">
+  <h2>👥 친구들 결과</h2>
+  <div id="fr-nav"><button id="fr-prev">◀ 이전</button><span id="fr-label">—</span><button id="fr-next">다음 ▶</button></div>
+  <div id="fr-list"></div>
+  <div id="fr-note" style="font-size:11px;color:var(--sub);margin-top:10px;text-align:center;line-height:1.5"></div>
+  <button id="fr-close">닫기</button>
 </div></div>
 <footer>매일 자정(한국시간) 새 문제 · 정답은 NYT Wordle API 기준이라 <b>디스코드 공식 Wordle과 같은 날 같은 단어</b>야.<br>
 위에서 <b>내 디스코드</b>를 고르면 결과가 자동으로 <b>#워들</b>에 올라가고, 매일 0시에 그룹 연속·순위 요약이 뜬다.
@@ -368,6 +388,43 @@ async function submitResult(manual) {
   } catch (e) { toast('전송 실패 — "결과 복사" 후 #워들에 붙여넣어줘'); return false; }
 }
 
+/* ---------- 친구들 결과 패널 (공식 앱의 그 결과 화면 대체) ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+let FR = null, frIdx = 0;
+async function loadFriends(force) {
+  if (FR && !force) return FR;
+  try {
+    const r = await fetch('results.json?d=' + Date.now(), {cache: 'no-store'});
+    FR = r.ok ? await r.json() : {days: []};
+  } catch (e) { FR = {days: []}; }
+  return FR;
+}
+function renderFriends() {
+  const days = (FR && FR.days) || [], list = $('fr-list'), note = $('fr-note');
+  if (!days.length) {
+    $('fr-label').textContent = '기록 없음';
+    list.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:13px;padding:16px 0">아직 아무도 결과를 안 올렸어 — 네가 처음 해봐!</div>';
+    note.textContent = '게임이 끝나면 자동으로 올라와 (미연동이면 결과 복사 → #워들에 붙여넣기). 집계는 5분마다 갱신.';
+    return;
+  }
+  frIdx = Math.max(0, Math.min(frIdx, days.length - 1));
+  const d = days[frIdx], rank = s => (s === 'X' ? 7 : Number(s));
+  const best = Math.min(...d.players.map(p => rank(p.score)));
+  $('fr-label').textContent = `#${d.n}${d.date ? ' · ' + d.date : ''} · ${d.players.length}명`;
+  list.innerHTML = d.players.map(p => {
+    const grid = (p.grid || '').split('\n').filter(Boolean)
+      .map(l => `<div>${esc(l)}</div>`).join('') || '<span style="color:var(--sub)">그리드 없음</span>';
+    return `<div class="fr-row"><div><div class="fr-score">${rank(p.score) === best ? '<span class="fr-best">👑</span> ' : ''}${esc(p.score)}/6</div>`
+      + `<div class="fr-name" title="${esc(p.name)}">${esc(p.name)}</div></div><div class="fr-grid">${grid}</div></div>`;
+  }).join('');
+  note.textContent = `${frIdx + 1} / ${days.length}일${days.length > 1 ? ' (◀ ▶ 로 이동)' : ''} · 집계는 5분마다 갱신`;
+}
+async function showFriends() {
+  await loadFriends(true);
+  frIdx = 0; renderFriends();
+  $('fr-overlay').classList.add('show');
+}
+
 /* ---------- 배선 ---------- */
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -377,6 +434,11 @@ document.addEventListener('keydown', e => {
 });
 $('share-btn').onclick = copyShare;
 $('send-btn').onclick = () => submitResult(true);
+$('fr-btn').onclick = showFriends;
+$('fr-close').onclick = () => $('fr-overlay').classList.remove('show');
+$('fr-overlay').onclick = e => { if (e.target.id === 'fr-overlay') $('fr-overlay').classList.remove('show'); };
+$('fr-prev').onclick = () => { frIdx++; renderFriends(); };
+$('fr-next').onclick = () => { frIdx--; renderFriends(); };
 $('who').onchange = () => {
   const sel = $('who');
   if (!sel.value) { ME = null; localStorage.removeItem('mw-me'); setMeState(); toast('연동 해제'); return; }
