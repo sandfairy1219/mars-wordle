@@ -68,7 +68,7 @@ def run(pw, width, height, shot=None):
     assert got == exp, "채점 불일치"
     colored = pg.evaluate("Array.from(document.querySelectorAll('.key')).filter(k=>/correct|present|absent/.test(k.className)).map(k=>k.textContent).join('')")
     print("keyboard colored:", colored)
-    assert colored == guess, "키보드 색칠 실패: %s" % colored
+    assert sorted(colored) == sorted(guess), "키보드 색칠 실패: %s" % colored
     print("OK 채점 일치(NYT 규칙) + 키보드 색칠")
 
     # 3) 정답 입력 → 승리 + 모달 + 공유 텍스트
