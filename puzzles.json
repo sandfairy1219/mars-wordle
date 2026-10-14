@@ -1,1 +1,406 @@
-{"2026-08-15": {"n": 1884, "solution": "LOOSE"}, "2026-08-16": {"n": 1885, "solution": "ASPIC"}, "2026-08-17": {"n": 1886, "solution": "TRIBE"}, "2026-08-18": {"n": 1887, "solution": "STRIP"}, "2026-08-19": {"n": 1888, "solution": "GRILL"}, "2026-08-20": {"n": 1889, "solution": "MURKY"}, "2026-08-21": {"n": 1890, "solution": "TRACE"}, "2026-08-22": {"n": 1891, "solution": "PRAWN"}, "2026-08-23": {"n": 1892, "solution": "OLDEN"}, "2026-08-24": {"n": 1893, "solution": "RUNNY"}, "2026-08-25": {"n": 1894, "solution": "CLICK"}, "2026-08-26": {"n": 1895, "solution": "CAPON"}, "2026-08-27": {"n": 1896, "solution": "UNCUT"}, "2026-08-28": {"n": 1897, "solution": "TWEEN"}, "2026-08-29": {"n": 1898, "solution": "BLOOD"}, "2026-08-30": {"n": 1899, "solution": "INTEL"}, "2026-08-31": {"n": 1900, "solution": "MOUND"}, "2026-09-01": {"n": 1901, "solution": "REMIX"}, "2026-09-02": {"n": 1902, "solution": "RULER"}, "2026-09-03": {"n": 1903, "solution": "JOIST"}, "2026-09-04": {"n": 1904, "solution": "WAGER"}, "2026-09-05": {"n": 1905, "solution": "SOUPY"}, "2026-09-06": {"n": 1906, "solution": "BEIGE"}, "2026-09-07": {"n": 1907, "solution": "BLIND"}, "2026-09-08": {"n": 1908, "solution": "LIVEN"}, "2026-09-09": {"n": 1909, "solution": "BURST"}, "2026-09-10": {"n": 1910, "solution": "DRYLY"}, "2026-09-11": {"n": 1911, "solution": "ASTER"}, "2026-09-12": {"n": 1912, "solution": "NIFTY"}, "2026-09-13": {"n": 1913, "solution": "FOCUS"}, "2026-09-14": {"n": 1914, "solution": "RINSE"}, "2026-09-15": {"n": 1915, "solution": "DEALT"}, "2026-09-16": {"n": 1916, "solution": "WISPY"}, "2026-09-17": {"n": 1917, "solution": "THETA"}, "2026-09-18": {"n": 1918, "solution": "SNOWY"}, "2026-09-19": {"n": 1919, "solution": "WAKEN"}, "2026-09-20": {"n": 1920, "solution": "SHONE"}, "2026-09-21": {"n": 1921, "solution": "PAGER"}, "2026-09-22": {"n": 1922, "solution": "STOKE"}, "2026-09-23": {"n": 1923, "solution": "FORTH"}, "2026-09-24": {"n": 1924, "solution": "MESSY"}, "2026-09-25": {"n": 1925, "solution": "COPSE"}, "2026-09-26": {"n": 1926, "solution": "ELEGY"}, "2026-09-27": {"n": 1927, "solution": "SLOOP"}, "2026-09-28": {"n": 1928, "solution": "TRUNK"}, "2026-09-29": {"n": 1929, "solution": "SCUBA"}, "2026-09-30": {"n": 1930, "solution": "RIVER"}, "2026-10-01": {"n": 1931, "solution": "RITZY"}, "2026-10-02": {"n": 1932, "solution": "USURY"}, "2026-10-03": {"n": 1933, "solution": "PEEVE"}, "2026-10-04": {"n": 1934, "solution": "SHACK"}, "2026-10-05": {"n": 1935, "solution": "MOCHA"}, "2026-10-06": {"n": 1936, "solution": "DIMLY"}, "2026-10-07": {"n": 1937, "solution": "PROVE"}, "2026-10-08": {"n": 1938, "solution": "STREW"}, "2026-10-09": {"n": 1939, "solution": "MAJOR"}, "2026-10-10": {"n": 1940, "solution": "BUMPY"}, "2026-10-11": {"n": 1941, "solution": "UNCAP"}, "2026-10-12": {"n": 1942, "solution": "YODEL"}, "2026-10-13": {"n": 1943, "solution": "WIDER"}, "2026-10-14": {"n": 1944, "solution": "PSYCH"}, "2026-10-15": {"n": 1945, "solution": "DUNCE"}, "2026-10-16": {"n": 1946, "solution": "SHADY"}, "2026-10-17": {"n": 1947, "solution": "GAFFE"}, "2026-10-18": {"n": 1948, "solution": "ADORN"}, "2026-10-19": {"n": 1949, "solution": "STINK"}, "2026-10-20": {"n": 1950, "solution": "WREST"}, "2026-10-21": {"n": 1951, "solution": "PENNY"}, "2026-10-22": {"n": 1952, "solution": "RESET"}, "2026-10-23": {"n": 1953, "solution": "TRILL"}, "2026-10-24": {"n": 1954, "solution": "HOLEY"}, "2026-10-25": {"n": 1955, "solution": "DRESS"}, "2026-10-26": {"n": 1956, "solution": "GEEKY"}, "2026-10-27": {"n": 1957, "solution": "BINGO"}, "2026-10-28": {"n": 1958, "solution": "GRIST"}, "2026-10-29": {"n": 1959, "solution": "MOTOR"}, "2026-10-30": {"n": 1960, "solution": "SLIDE"}, "2026-10-31": {"n": 1961, "solution": "YAHOO"}, "2026-11-01": {"n": 1962, "solution": "VIPER"}, "2026-11-02": {"n": 1963, "solution": "SCOOT"}, "2026-11-03": {"n": 1964, "solution": "POUCH"}, "2026-11-04": {"n": 1965, "solution": "NUTTY"}, "2026-11-05": {"n": 1966, "solution": "PARCH"}, "2026-11-06": {"n": 1967, "solution": "DRECK"}, "2026-11-07": {"n": 1968, "solution": "PRATE"}, "2026-11-08": {"n": 1969, "solution": "FIRST"}, "2026-11-09": {"n": 1970, "solution": "LOAMY"}, "2026-11-10": {"n": 1971, "solution": "TRUCE"}, "2026-11-11": {"n": 1972, "solution": "BLESS"}, "2026-11-12": {"n": 1973, "solution": "KARAT"}, "2026-11-13": {"n": 1974, "solution": "MOXIE"}, "2026-11-14": {"n": 1975, "solution": "RANDY"}, "2026-11-15": {"n": 1976, "solution": "SNARK"}, "2026-11-16": {"n": 1977, "solution": "DRAWL"}, "2026-11-17": {"n": 1978, "solution": "ROAST"}, "2026-11-18": {"n": 1979, "solution": "BLURT"}, "2026-11-19": {"n": 1980, "solution": "CLOUT"}, "2026-11-20": {"n": 1981, "solution": "AROSE"}, "2026-11-21": {"n": 1982, "solution": "STENT"}, "2026-11-22": {"n": 1983, "solution": "UPEND"}, "2026-11-23": {"n": 1984, "solution": "FILTH"}, "2026-11-24": {"n": 1985, "solution": "SNEER"}}
+{
+"2026-08-16": {
+"n": 1885,
+"solution": "ASPIC"
+},
+"2026-08-17": {
+"n": 1886,
+"solution": "TRIBE"
+},
+"2026-08-18": {
+"n": 1887,
+"solution": "STRIP"
+},
+"2026-08-19": {
+"n": 1888,
+"solution": "GRILL"
+},
+"2026-08-20": {
+"n": 1889,
+"solution": "MURKY"
+},
+"2026-08-21": {
+"n": 1890,
+"solution": "TRACE"
+},
+"2026-08-22": {
+"n": 1891,
+"solution": "PRAWN"
+},
+"2026-08-23": {
+"n": 1892,
+"solution": "OLDEN"
+},
+"2026-08-24": {
+"n": 1893,
+"solution": "RUNNY"
+},
+"2026-08-25": {
+"n": 1894,
+"solution": "CLICK"
+},
+"2026-08-26": {
+"n": 1895,
+"solution": "CAPON"
+},
+"2026-08-27": {
+"n": 1896,
+"solution": "UNCUT"
+},
+"2026-08-28": {
+"n": 1897,
+"solution": "TWEEN"
+},
+"2026-08-29": {
+"n": 1898,
+"solution": "BLOOD"
+},
+"2026-08-30": {
+"n": 1899,
+"solution": "INTEL"
+},
+"2026-08-31": {
+"n": 1900,
+"solution": "MOUND"
+},
+"2026-09-01": {
+"n": 1901,
+"solution": "REMIX"
+},
+"2026-09-02": {
+"n": 1902,
+"solution": "RULER"
+},
+"2026-09-03": {
+"n": 1903,
+"solution": "JOIST"
+},
+"2026-09-04": {
+"n": 1904,
+"solution": "WAGER"
+},
+"2026-09-05": {
+"n": 1905,
+"solution": "SOUPY"
+},
+"2026-09-06": {
+"n": 1906,
+"solution": "BEIGE"
+},
+"2026-09-07": {
+"n": 1907,
+"solution": "BLIND"
+},
+"2026-09-08": {
+"n": 1908,
+"solution": "LIVEN"
+},
+"2026-09-09": {
+"n": 1909,
+"solution": "BURST"
+},
+"2026-09-10": {
+"n": 1910,
+"solution": "DRYLY"
+},
+"2026-09-11": {
+"n": 1911,
+"solution": "ASTER"
+},
+"2026-09-12": {
+"n": 1912,
+"solution": "NIFTY"
+},
+"2026-09-13": {
+"n": 1913,
+"solution": "FOCUS"
+},
+"2026-09-14": {
+"n": 1914,
+"solution": "RINSE"
+},
+"2026-09-15": {
+"n": 1915,
+"solution": "DEALT"
+},
+"2026-09-16": {
+"n": 1916,
+"solution": "WISPY"
+},
+"2026-09-17": {
+"n": 1917,
+"solution": "THETA"
+},
+"2026-09-18": {
+"n": 1918,
+"solution": "SNOWY"
+},
+"2026-09-19": {
+"n": 1919,
+"solution": "WAKEN"
+},
+"2026-09-20": {
+"n": 1920,
+"solution": "SHONE"
+},
+"2026-09-21": {
+"n": 1921,
+"solution": "PAGER"
+},
+"2026-09-22": {
+"n": 1922,
+"solution": "STOKE"
+},
+"2026-09-23": {
+"n": 1923,
+"solution": "FORTH"
+},
+"2026-09-24": {
+"n": 1924,
+"solution": "MESSY"
+},
+"2026-09-25": {
+"n": 1925,
+"solution": "COPSE"
+},
+"2026-09-26": {
+"n": 1926,
+"solution": "ELEGY"
+},
+"2026-09-27": {
+"n": 1927,
+"solution": "SLOOP"
+},
+"2026-09-28": {
+"n": 1928,
+"solution": "TRUNK"
+},
+"2026-09-29": {
+"n": 1929,
+"solution": "SCUBA"
+},
+"2026-09-30": {
+"n": 1930,
+"solution": "RIVER"
+},
+"2026-10-01": {
+"n": 1931,
+"solution": "RITZY"
+},
+"2026-10-02": {
+"n": 1932,
+"solution": "USURY"
+},
+"2026-10-03": {
+"n": 1933,
+"solution": "PEEVE"
+},
+"2026-10-04": {
+"n": 1934,
+"solution": "SHACK"
+},
+"2026-10-05": {
+"n": 1935,
+"solution": "MOCHA"
+},
+"2026-10-06": {
+"n": 1936,
+"solution": "DIMLY"
+},
+"2026-10-07": {
+"n": 1937,
+"solution": "PROVE"
+},
+"2026-10-08": {
+"n": 1938,
+"solution": "STREW"
+},
+"2026-10-09": {
+"n": 1939,
+"solution": "MAJOR"
+},
+"2026-10-10": {
+"n": 1940,
+"solution": "BUMPY"
+},
+"2026-10-11": {
+"n": 1941,
+"solution": "UNCAP"
+},
+"2026-10-12": {
+"n": 1942,
+"solution": "YODEL"
+},
+"2026-10-13": {
+"n": 1943,
+"solution": "WIDER"
+},
+"2026-10-14": {
+"n": 1944,
+"solution": "PSYCH"
+},
+"2026-10-15": {
+"n": 1945,
+"solution": "DUNCE"
+},
+"2026-10-16": {
+"n": 1946,
+"solution": "SHADY"
+},
+"2026-10-17": {
+"n": 1947,
+"solution": "GAFFE"
+},
+"2026-10-18": {
+"n": 1948,
+"solution": "ADORN"
+},
+"2026-10-19": {
+"n": 1949,
+"solution": "STINK"
+},
+"2026-10-20": {
+"n": 1950,
+"solution": "WREST"
+},
+"2026-10-21": {
+"n": 1951,
+"solution": "PENNY"
+},
+"2026-10-22": {
+"n": 1952,
+"solution": "RESET"
+},
+"2026-10-23": {
+"n": 1953,
+"solution": "TRILL"
+},
+"2026-10-24": {
+"n": 1954,
+"solution": "HOLEY"
+},
+"2026-10-25": {
+"n": 1955,
+"solution": "DRESS"
+},
+"2026-10-26": {
+"n": 1956,
+"solution": "GEEKY"
+},
+"2026-10-27": {
+"n": 1957,
+"solution": "BINGO"
+},
+"2026-10-28": {
+"n": 1958,
+"solution": "GRIST"
+},
+"2026-10-29": {
+"n": 1959,
+"solution": "MOTOR"
+},
+"2026-10-30": {
+"n": 1960,
+"solution": "SLIDE"
+},
+"2026-10-31": {
+"n": 1961,
+"solution": "YAHOO"
+},
+"2026-11-01": {
+"n": 1962,
+"solution": "VIPER"
+},
+"2026-11-02": {
+"n": 1963,
+"solution": "SCOOT"
+},
+"2026-11-03": {
+"n": 1964,
+"solution": "POUCH"
+},
+"2026-11-04": {
+"n": 1965,
+"solution": "NUTTY"
+},
+"2026-11-05": {
+"n": 1966,
+"solution": "PARCH"
+},
+"2026-11-06": {
+"n": 1967,
+"solution": "DRECK"
+},
+"2026-11-07": {
+"n": 1968,
+"solution": "PRATE"
+},
+"2026-11-08": {
+"n": 1969,
+"solution": "FIRST"
+},
+"2026-11-09": {
+"n": 1970,
+"solution": "LOAMY"
+},
+"2026-11-10": {
+"n": 1971,
+"solution": "TRUCE"
+},
+"2026-11-11": {
+"n": 1972,
+"solution": "BLESS"
+},
+"2026-11-12": {
+"n": 1973,
+"solution": "KARAT"
+},
+"2026-11-13": {
+"n": 1974,
+"solution": "MOXIE"
+},
+"2026-11-14": {
+"n": 1975,
+"solution": "RANDY"
+},
+"2026-11-15": {
+"n": 1976,
+"solution": "SNARK"
+},
+"2026-11-16": {
+"n": 1977,
+"solution": "DRAWL"
+},
+"2026-11-17": {
+"n": 1978,
+"solution": "ROAST"
+},
+"2026-11-18": {
+"n": 1979,
+"solution": "BLURT"
+},
+"2026-11-19": {
+"n": 1980,
+"solution": "CLOUT"
+},
+"2026-11-20": {
+"n": 1981,
+"solution": "AROSE"
+},
+"2026-11-21": {
+"n": 1982,
+"solution": "STENT"
+},
+"2026-11-22": {
+"n": 1983,
+"solution": "UPEND"
+},
+"2026-11-23": {
+"n": 1984,
+"solution": "FILTH"
+},
+"2026-11-24": {
+"n": 1985,
+"solution": "SNEER"
+}
+}
