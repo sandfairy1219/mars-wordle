@@ -131,7 +131,7 @@ footer{font-size:10px;color:var(--sub);padding:0 14px 16px;text-align:center;lin
   <button id="fr-close">닫기</button>
 </div></div>
 <footer>매일 자정(한국시간) 새 문제 · 정답은 NYT Wordle API 기준이라 <b>디스코드 공식 Wordle과 같은 날 같은 단어</b>야.<br>
-게임이 끝나면 <b>📮 #워들에 전송</b> 한 번이면 끝(<b>🔗 로그인</b> 필요) — 로그인 없이도 <b>📋 결과 복사</b> → #워들 붙여넣기로 집계된다.<br>
+<b>🔗 로그인</b>해두면 게임이 끝나는 순간 <b>자동 전송</b>된다 — 로그인 없이 하려면 <b>📋 결과 복사</b> → #워들 붙여넣기.<br>
 매일 0시에 그룹 연속·순위 요약이 <b>#워들</b>에 뜨고, 누가 어떻게 풀었는지는 <b>👥 친구들 결과</b>에서 그리드로 볼 수 있다.</footer>
 
 <script>
@@ -314,6 +314,7 @@ function endGame(won) {
     saveDaily(true);
   }
   if (mode === 'daily' && TOK && submittedDay !== day) submitResult(false);   // 연동돼 있으면 서버측(Worker)으로 자동 전송
+  else if (mode === 'daily' && !TOK) toast('🔗 로그인하면 자동 전송돼 — 지금은 📋 복사 → #워들 붙여넣기');
   setTimeout(() => showModal(won), 900);
 }
 function tickCountdown() {
@@ -329,6 +330,7 @@ function showModal(won) {
   $('grid').textContent = gridText();
   renderStats(); tickCountdown();
   clearInterval(cdTimer); cdTimer = setInterval(tickCountdown, 1000);
+  $('send-btn').textContent = TOK ? '📮 #워들에 다시 전송' : '📮 #워들에 전송';
   $('overlay').classList.add('show');
 }
 function hideModal() { overlayOpen = false; clearInterval(cdTimer); $('overlay').classList.remove('show'); }
@@ -367,9 +369,11 @@ async function startDaily() {
    Cloudflare Worker(wordle-submit)의 시크릿에만 있고, 이 페이지는 그 API만 호출한다.
    브라우저가 가진 건 '내 계정 토큰'뿐 → 남의 이름으로 올리거나 채널을 도배할 수 없다.
    Worker는 ① 토큰 소유자 확인 ② MARS II 길드 멤버 여부 확인 후에만 게시한다(= 외부인 게시 불가). */
+const markSent = () => { try { localStorage.setItem('mw-sent', day); } catch (e) {} };
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
 const SUBMIT_API = "https://wordle-submit.sandfairy1219.workers.dev/submit";
 let ME = null, TOK = null, submittedDay = null, lastSubmitTs = 0;
+try { submittedDay = localStorage.getItem('mw-sent') || null; } catch (e) {}   // 오늘 이미 보냈으면 재방문 때 재전송하지 않는다
 try {
   ME = JSON.parse(localStorage.getItem('mw-me') || 'null');
   if (ME && ME.via !== 'oauth') { ME = null; localStorage.removeItem('mw-me'); }   // 옛 '이름 선택' 연동은 폐기(위조 가능했음)
@@ -407,18 +411,28 @@ async function handleOAuth() {
 }
 function setMeState() {
   const el = $('me-state'), btn = $('login-btn');
-  if (ME) {
-    el.textContent = (ME.via === 'oauth' ? '✅ ' : '') + ME.name + (TOK ? ' · 자동전송' : ' · 재로그인 필요');
+  if (TOK) {   // 토큰이 살아있으면 로그인 상태(ME는 부가 표시) — 재방문마다 재로그인하게 만들지 않는다
+    el.textContent = '✅ ' + (ME ? ME.name : '내 계정') + ' · 자동전송 켜짐';
     el.classList.add('on');
-    if (btn) btn.textContent = ME.via === 'oauth' ? '🔗 계정 변경' : '🔗 Discord 로그인';
+    if (btn) btn.textContent = '🔗 계정 변경';
   } else {
-    el.textContent = '미연동';
+    el.textContent = '미연동 — 🔗 로그인하면 결과가 자동 전송돼';
     el.classList.remove('on');
     if (btn) btn.textContent = '🔗 Discord 로그인';
   }
 }
-async function loadPlayers() {
+async function restoreSession() {   // 재방문: 저장된 토큰을 검증하고 me-bar를 실제 상태로 표시한다
+  if (TOK && !ME) {
+    try {
+      const r = await fetch('https://discord.com/api/v10/users/@me', {headers: {Authorization: 'Bearer ' + TOK.token}});
+      if (r.ok) { const u = await r.json(); ME = {id: u.id, name: u.global_name || u.username, via: 'oauth'}; localStorage.setItem('mw-me', JSON.stringify(ME)); }
+      else if (r.status === 401 || r.status === 403) { TOK = null; ME = null; localStorage.removeItem('mw-tok'); localStorage.removeItem('mw-me'); }
+    } catch (e) {}   // 네트워크 실패면 토큰 유지(로그인 표시 유지)
+  }
   setMeState();
+}
+async function loadPlayers() {
+  await restoreSession();
 }
 /* 서버측(Worker) 경유 전송 — 브라우저엔 웹훅이 없다. 토큰이 없거나 실패하면 '복사 → 붙여넣기'로 폴백. */
 async function fallbackPaste(msg) {
@@ -442,16 +456,19 @@ async function submitResult(manual) {
       body: JSON.stringify({token: TOK.token, text: shareText()})
     });
     const d = await r.json().catch(() => ({}));
-    if (r.ok && d.ok) { submittedDay = day; lastSubmitTs = Date.now(); toast('✅ 결과를 #워들에 전송했어'); return true; }
+    if (r.ok && d.ok) { submittedDay = day; lastSubmitTs = Date.now(); markSent(); toast('✅ 결과를 #워들에 전송했어'); return true; }
     if (d.code === 'bad_token' || d.code === 'need_scope') {   // 만료/권한 갱신 필요 → 재로그인 유도
       TOK = null; localStorage.removeItem('mw-tok'); setMeState();
+      toast('연동이 만료됐어 — 🔗 다시 로그인해줘');
       return manual ? fallbackPaste('연동이 만료됐어 — 복사했으니 #워들에 붙여넣어줘') : false;
     }
-    if (d.code === 'not_member') { if (manual) toast('MARS II 멤버만 자동전송 돼 — 복사해서 붙여넣어줘'); return false; }
-    if (d.code === 'duplicate') { submittedDay = day; if (manual) toast('오늘 결과는 이미 전송됐어'); return true; }
-    if (d.code === 'wrong_puzzle') { if (manual) toast('오늘 회차 결과가 아니야 — 사이트에서 새로고침 해줘'); return false; }
+    if (d.code === 'not_member') { toast('자동전송은 MARS II 멤버만 돼 — 📋 복사해서 붙여넣어줘'); return manual ? copyShare() : false; }
+    if (d.code === 'duplicate') { submittedDay = day; markSent(); if (manual) toast('오늘 결과는 이미 전송됐어'); return true; }
+    if (d.code === 'wrong_puzzle') { toast('회차 정보가 안 맞아 — 새로고침 후 다시'); return manual ? copyShare() : false; }
+    if (!manual) toast('자동전송 실패 — 📋 복사해서 붙여넣어줘');
     return manual ? fallbackPaste('전송 실패 — 복사했으니 #워들에 붙여넣어줘') : false;
   } catch (e) {
+    if (!manual) toast('자동전송 실패(네트워크) — 📋 복사해서 붙여넣어줘');
     return manual ? fallbackPaste('전송 실패(네트워크) — 복사했으니 #워들에 붙여넣어줘') : false;
   }
 }
@@ -520,7 +537,7 @@ $('practice-btn').onclick = startPractice;
 $('theme-btn').onclick = () => document.body.classList.toggle('light');
 setInterval(() => { if (mode === 'daily' && dstr() !== day) { toast('새 문제!'); startDaily(); } }, 30000);   // 자정 넘김 자동 갱신
 buildBoard(); buildKeyboard();
-(async () => { await handleOAuth(); await startDaily(); })();   // 로그인 콜백 먼저 → 복원된 게임이면 자동 전송까지
+(async () => { await handleOAuth(); await restoreSession(); await startDaily(); })();   // 로그인 콜백 먼저 → 복원된 게임이면 자동 전송까지
 </script>
 </body>
 </html>
