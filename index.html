@@ -281,7 +281,7 @@ function submitGuess() {
     const won = results.every(r => r === 'correct');
     if (won) endGame(true);
     else if (guesses.length === 6) endGame(false);
-    else if (mode === 'daily') saveDaily(false);
+    else if (mode === 'daily') { saveDaily(false); sendLive(); }   // 진행중이면 #워들에 실시간 반영(같은 메시지 편집)
   }, 4 * FLIP + 600);
 }
 
@@ -372,6 +372,7 @@ async function startDaily() {
 const markSent = () => { try { localStorage.setItem('mw-sent', day); } catch (e) {} };
 const CHANNEL_URL = "https://discord.com/channels/1512107856390783077/1559893272166662178";
 const SUBMIT_API = "https://wordle-submit.sandfairy1219.workers.dev/submit";
+const LIVE_API = "https://wordle-submit.sandfairy1219.workers.dev/live";   // 진행중 갱신(같은 메시지 편집)
 let ME = null, TOK = null, submittedDay = null, lastSubmitTs = 0;
 try { submittedDay = localStorage.getItem('mw-sent') || null; } catch (e) {}   // 오늘 이미 보냈으면 재방문 때 재전송하지 않는다
 try {
@@ -412,7 +413,7 @@ async function handleOAuth() {
 function setMeState() {
   const el = $('me-state'), btn = $('login-btn');
   if (TOK) {   // 토큰이 살아있으면 로그인 상태(ME는 부가 표시) — 재방문마다 재로그인하게 만들지 않는다
-    el.textContent = '✅ ' + (ME ? ME.name : '내 계정') + ' · 자동전송 켜짐';
+    el.textContent = '✅ ' + (ME ? ME.name : '내 계정') + ' · 실시간 전송 켜짐';
     el.classList.add('on');
     if (btn) btn.textContent = '🔗 계정 변경';
   } else {
@@ -440,6 +441,32 @@ async function fallbackPaste(msg) {
   window.open(CHANNEL_URL, '_blank', 'noopener');
   toast(msg || '복사했어 — 열린 #워들에 붙여넣기(Ctrl+V)');
   return false;
+}
+/* ---------- 실시간 진행 전송: 시도할 때마다 #워들 내 메시지를 편집한다 ---------- */
+let liveBusy = false, liveOk = false;
+async function sendLive() {
+  if (!TOK || mode !== 'daily' || status !== 'playing' || !num) return false;
+  if (liveBusy) return false;
+  liveBusy = true;
+  try {
+    const r = await fetch(LIVE_API, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: TOK.token, n: num, day, grid: gridText(), attempt: guesses.length})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.code === 'bad_token' || d.code === 'need_scope') {   // 토큰 만료 → 재로그인 유도
+      TOK = null; localStorage.removeItem('mw-tok'); setMeState();
+      toast('연동이 만료됐어 — 🔗 다시 로그인해줘');
+      return false;
+    }
+    if (!d.ok) {   // 진행중 갱신 실패는 조용히(본선은 최종 전송) — 콘솔에만 남긴다
+      console.warn('live 실패:', d.code || r.status, d.error || '');
+      return false;
+    }
+    if (!liveOk) { liveOk = true; toast('🟢 #워들에 실시간으로 반영 중'); }
+    return true;
+  } catch (e) { console.warn('live 네트워크 실패:', e); return false; }
+  finally { liveBusy = false; }
 }
 async function submitResult(manual) {
   if (mode !== 'daily') { toast('연습 모드는 올리지 마'); return false; }
